@@ -154,6 +154,7 @@ export class FishRenderer {
   private readonly shadowScene = new THREE.Scene();
   private readonly fishScene = new THREE.Scene();
   private readonly surfaceScene = new THREE.Scene();
+  private readonly surfaceShadowScene = new THREE.Scene();
   private readonly surfaceObjectScene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(
     0,
@@ -202,6 +203,7 @@ export class FishRenderer {
     this.waterSurface = new WaterSurfacePass(this.underwaterTarget.texture);
     this.bedScene.add(this.pondBed.mesh);
     this.surfaceScene.add(this.waterSurface.mesh);
+    this.surfaceShadowScene.add(this.lotusLeaves.shadowGroup);
     this.surfaceObjectScene.add(this.lotusLeaves.group);
 
     const shadowGeometry = new THREE.BufferGeometry();
@@ -293,6 +295,7 @@ export class FishRenderer {
     this.renderer.clear();
     this.renderer.render(this.surfaceScene, this.surfaceCamera);
     this.renderer.autoClear = false;
+    this.renderer.render(this.surfaceShadowScene, this.camera);
     this.renderer.render(this.surfaceObjectScene, this.camera);
     this.renderer.autoClear = true;
   }

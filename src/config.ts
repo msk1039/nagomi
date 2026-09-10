@@ -51,14 +51,14 @@ export const FISH = {
   maximumCount: 48,
   regularLength: [27, 40] as const,
   regularWidthRatio: [0.17, 0.20] as const,
-  tinyEvery: 4,
+  tinyEvery: 2,
   tinyLength: [16, 22] as const,
   tinyWidthRatio: [0.18, 0.22] as const,
   eyeColor: 0x171815,
   shadow: {
     color: 0x0b211e,
-    opacity: 0.36,
-    offset: { x: 4.4, y: 6.4 },
+    opacity: 0.56,
+    offset: { x: 4.4, y: 10.4 },
   },
   callResponse: {
     // Farther fish receive a larger part of maximumDistanceDelaySeconds.
@@ -159,9 +159,9 @@ export const POND_BED = {
 
 export const WATER = {
   maximumRipples: 8,
-  ripplesPerCall: 2,
-  rippleIntervalSeconds: 0.075,
-  rippleStrengthFalloff: 0.72,
+  ripplesPerCall: 3,
+  rippleIntervalSeconds: 0.030,
+  rippleStrengthFalloff: 0.92,
   rippleLifetime: 1.8,
   colorTint: [0.96, 1.02, 1.0] as Rgb,
   largeCurrentColor: [0.022, 0.068, 0.047] as Rgb,
@@ -170,14 +170,15 @@ export const WATER = {
   detailCurrentCoreColor: [0.028, 0.090, 0.061] as Rgb,
   largeCellSize: 58,
   detailCellSize: 32,
-  rippleStartRadius: 4,
+  rippleStartRadius: 2,
   rippleExpansionSpeed: 62,
-  rippleDistortion: 3.25,
+  rippleDistortion: 5.25,
 } as const;
 
 export const LOTUS = {
   visibleLeafCount: 15,
-  visibleFlowerCount: 2,
+  visibleFlowerCount: 4,
+  radiusScale: 1.18,
   leafSegments: 18,
   veinCount: 7,
   notchHalfAngle: 0.30,
@@ -187,8 +188,8 @@ export const LOTUS = {
   rotationAmount: 0.055,
   shadow: {
     color: 0x0a2b26,
-    opacity: 0.36,
-    offset: { x: 2.8, y: 4.4 },
+    opacity: 0.50,
+    offset: { x: 4.8, y: 10.4 },
   },
   leafPalettes: [
     {
@@ -230,20 +231,21 @@ export const LOTUS_LEAVES: readonly LotusLeafSetting[] = [
   { x: 76, y: 17, radius: 16, angle: 2.15, phase: 1.4, palette: 1 },
   { x: 431, y: 18, radius: 23, angle: 2.75, phase: 2.2, palette: 0 },
   { x: 476, y: 88, radius: 17, angle: 4.25, phase: 3.3, palette: 1 },
-  { x: 460, y: 151, radius: 13, angle: 0.95, phase: 4.6, palette: 0 },
+  { x: 460, y: 151, radius: 23, angle: 0.95, phase: 4.6, palette: 0 },
   { x: 488, y: 216, radius: 20, angle: 3.55, phase: 5.4, palette: 1 },
   { x: 395, y: 252, radius: 22, angle: 5.3, phase: 0.9, palette: 0 },
-  { x: 113, y: 260, radius: 18, angle: 4.65, phase: 2.8, palette: 1 },
+  { x: 113, y: 260, radius: 28, angle: 4.65, phase: 2.8, palette: 1 },
   { x: 31, y: 230, radius: 19, angle: 1.85, phase: 4.1, palette: 0 },
-  { x: 140, y: 10, radius: 11, angle: 0.70, phase: 5.9, palette: 1 },
+  { x: 140, y: 10, radius: 21, angle: 0.70, phase: 5.9, palette: 1 },
   { x: 330, y: 7, radius: 14, angle: 3.85, phase: 1.8, palette: 0 },
-  { x: 447, y: 57, radius: 10, angle: 5.65, phase: 3.8, palette: 1 },
+  { x: 447, y: 57, radius: 20, angle: 5.65, phase: 3.8, palette: 1 },
   { x: 82, y: 76, radius: 12, angle: 1.25, phase: 4.9, palette: 0 },
-  { x: 414, y: 194, radius: 13, angle: 4.85, phase: 0.5, palette: 1 },
+  { x: 414, y: 194, radius: 23, angle: 4.85, phase: 2.5, palette: 1 },
+  { x: 444, y: 224, radius: 20, angle: 2.85, phase: 2.5, palette: 1 },
   { x: 10, y: 165, radius: 14, angle: 2.55, phase: 2.5, palette: 0 },
   { x: 451, y: 246, radius: 10, angle: 0.15, phase: 3.1, palette: 1 },
-  { x: 58, y: 202, radius: 9, angle: 5.15, phase: 5.0, palette: 0 },
-  { x: 374, y: 31, radius: 9, angle: 2.25, phase: 1.1, palette: 1 },
+  { x: 58, y: 202, radius: 15, angle: 5.15, phase: 5.0, palette: 0 },
+  { x: 374, y: 31, radius: 19, angle: 2.25, phase: 1.1, palette: 1 },
 ];
 
 // Raise visibleFlowerCount up to this list length to reveal reserve flowers.

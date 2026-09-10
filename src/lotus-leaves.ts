@@ -144,6 +144,7 @@ class LotusGeometryBatch {
 }
 
 export class LotusLeavesPass {
+  public readonly shadowGroup = new THREE.Group();
   public readonly group = new THREE.Group();
 
   private readonly shadowGeometry = new THREE.BufferGeometry();
@@ -215,11 +216,11 @@ export class LotusLeavesPass {
     leafMesh.frustumCulled = false;
     veins.frustumCulled = false;
     flowers.frustumCulled = false;
-    shadowMesh.renderOrder = 1;
-    leafMesh.renderOrder = 2;
-    veins.renderOrder = 3;
-    flowers.renderOrder = 4;
-    this.group.add(shadowMesh, leafMesh, veins, flowers);
+    leafMesh.renderOrder = 1;
+    veins.renderOrder = 2;
+    flowers.renderOrder = 3;
+    this.shadowGroup.add(shadowMesh);
+    this.group.add(leafMesh, veins, flowers);
   }
 
   public update(time: number): void {
@@ -240,7 +241,10 @@ export class LotusLeavesPass {
       const angle =
         leaf.angle +
         Math.sin(time * 0.085 + leaf.phase) * LOTUS.rotationAmount;
-      const radius = leaf.radius * (1 + Math.sin(time * 0.11 + leaf.phase) * 0.012);
+      const radius =
+        leaf.radius *
+        LOTUS.radiusScale *
+        (1 + Math.sin(time * 0.11 + leaf.phase) * 0.012);
       const palette = PALETTES[leaf.palette];
 
       this.drawLeaf(
