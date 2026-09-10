@@ -1,4 +1,4 @@
-import { CANVAS_HEIGHT, CANVAS_WIDTH, SPINE_NODES, TAU } from "./config";
+import { CANVAS_HEIGHT, CANVAS_WIDTH, FISH, SPINE_NODES, TAU } from "./config";
 import { add, fromAngle, mul, type Vec2, vec, XorShift32 } from "./math";
 
 export enum SwimState {
@@ -30,6 +30,7 @@ export class Koi {
   public pivotHeading = 0;
   public reactivity = 0.7;
   public callDelay = 0;
+  public respondedToCall = false;
   public tailEffort = 0.6;
   public behaviorRng = 1;
   public state = SwimState.Glide;
@@ -44,13 +45,17 @@ export class Koi {
     this.maximumSpeed = this.cruiseSpeed * random.range(1.55, 1.9);
     this.speed = this.cruiseSpeed * random.range(0.72, 1.05);
     this.turnStrength = random.range(4.4, 6.8);
-    this.bodyLength = random.range(27, 38);
-    this.bodyWidth = this.bodyLength * random.range(0.17, 0.2);
+    const tiny = index % FISH.tinyEvery === FISH.tinyEvery - 1;
+    const lengthRange = tiny ? FISH.tinyLength : FISH.regularLength;
+    const widthRange = tiny ? FISH.tinyWidthRatio : FISH.regularWidthRatio;
+    this.bodyLength = random.range(lengthRange[0], lengthRange[1]);
+    this.bodyWidth = this.bodyLength * random.range(widthRange[0], widthRange[1]);
     this.phaseOffset = random.range(0, TAU);
     this.swimPhase = this.phaseOffset;
     this.wanderSeed = random.range(0, 100);
     this.reactivity = random.range(0.35, 1);
     this.callDelay = 0;
+    this.respondedToCall = false;
     this.behaviorRng = (0x9e3779b9 ^ Math.imul(index + 1, 0x85ebca6b)) >>> 0;
     this.state = index % 5;
 

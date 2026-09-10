@@ -4,6 +4,7 @@ import {
   INITIAL_FISH,
   MAX_FISH,
   MAX_RIPPLES,
+  RIPPLE_LIFETIME,
   SPINE_NODES,
 } from "./config";
 import { Koi, SwimState } from "./koi";
@@ -37,7 +38,7 @@ export class School {
     alive: false,
   }));
 
-  public count = INITIAL_FISH;
+  public count: number = INITIAL_FISH;
   public targetActive = false;
 
   private random = new XorShift32();
@@ -66,6 +67,7 @@ export class School {
     for (let index = 0; index < this.count; index += 1) {
       const fish = this.fish[index];
       fish.callDelay = this.random.range(0.04, 1.15) * (1.22 - fish.reactivity);
+      fish.respondedToCall = false;
     }
     this.addRipple(point);
   }
@@ -83,13 +85,17 @@ export class School {
 
   public update(dt: number, time: number): void {
     this.targetAge += dt;
-    if (this.targetActive && this.targetAge > 7.5) this.targetActive = false;
+    if (this.targetActive && this.targetAge > 4.0) this.targetActive = false;
 
     const desired: Vec2[] = [];
     const desiredSpeed: number[] = [];
     for (let index = 0; index < this.count; index += 1) {
       const fish = this.fish[index];
       fish.callDelay = Math.max(0, fish.callDelay - dt);
+      if (this.targetActive && fish.callDelay <= 0 && !fish.respondedToCall) {
+        fish.respondedToCall = true;
+        this.enterState(fish, SwimState.Burst);
+      }
       this.updateNaturalState(fish, dt);
       desired[index] = this.steeringFor(index, time);
       desiredSpeed[index] = this.desiredSpeedFor(index);
@@ -101,7 +107,7 @@ export class School {
     for (const ripple of this.ripples) {
       if (!ripple.alive) continue;
       ripple.age += dt;
-      if (ripple.age > 1.25) ripple.alive = false;
+      if (ripple.age > RIPPLE_LIFETIME) ripple.alive = false;
     }
   }
 
@@ -231,11 +237,12 @@ export class School {
     }
     steering = add(steering, mul(edgeForce, 4.8));
 
-    if (this.targetActive && fish.callDelay <= 0 && fish.state !== SwimState.Hover) {
+    if (this.targetActive && fish.callDelay <= 0) {
       const toTarget = sub(this.target, fish.position);
       const distance = length(toTarget);
       if (distance > 13) {
-        steering = add(steering, mul(normalize(toTarget), 2.45));
+        const chasePull = this.targetAge < 2.65 ? 3.35 : 2.45;
+        steering = add(steering, mul(normalize(toTarget), chasePull));
       } else {
         const targetDirection = normalize(toTarget, forward);
         steering = add(steering, mul(perpendicular(targetDirection), 2.2));
@@ -248,6 +255,12 @@ export class School {
 
   private desiredSpeedFor(index: number): number {
     const fish = this.fish[index];
+    const chasing = this.targetActive && fish.callDelay <= 0 && this.targetAge < 2.65;
+    if (chasing) {
+      const chaseFade = 1 - clamp(this.targetAge / 2.65, 0, 1);
+      return fish.maximumSpeed * (1.30 + chaseFade * 0.34);
+    }
+
     let intention = fish.cruiseSpeed;
     if (this.targetActive && fish.callDelay <= 0) {
       const distance = length(sub(this.target, fish.position));

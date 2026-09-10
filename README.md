@@ -1,6 +1,6 @@
 # Procedural Koi — Three.js
 
-A WebGL port of the procedural one-bit koi simulation. Three.js draws dynamic fish geometry at a fixed 480 × 270 resolution and the browser scales it with nearest-neighbor filtering.
+A WebGL procedural koi simulation. Three.js draws colorful generated koi patterns, dynamic fish geometry, subtle shadows, a procedural pond bed, and refractive click ripples at a fixed 480 × 270 resolution.
 
 ## Run
 
@@ -15,6 +15,11 @@ npm run dev
 npm run build
 npm run preview
 ```
+
+## Tune
+
+Edit `src/config.ts` to change fish counts and sizes, koi colors, water colors,
+lotus leaves, flowers, and shadow strength.
 
 ## Controls
 
