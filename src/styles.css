@@ -34,9 +34,14 @@ canvas {
   background: #050505;
 }
 
-.display {
+.pond-shell {
   position: relative;
   width: min(100vw, calc(100dvh * 16 / 9));
+}
+
+.display {
+  position: relative;
+  width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background: #000;
@@ -126,16 +131,45 @@ canvas {
 }
 
 @media (pointer: coarse), (max-width: 700px) {
+  .pond-shell {
+    width: min(100vw, calc((100dvh - 3.6rem) * 16 / 9));
+  }
+
   .desktop-help {
     display: none;
   }
 
   .touch-controls {
     display: flex;
+    position: static;
+    justify-content: center;
+    width: 100%;
+    min-height: 3.6rem;
+    padding: 0.7rem 0.4rem;
+    border-top: 1px solid #222;
+    background: #050505;
+    transform: none;
   }
 
   .hud--bottom {
     bottom: 3.5%;
+  }
+}
+
+@media (max-width: 380px) {
+  .touch-controls {
+    gap: 0.25rem;
+  }
+
+  .touch-controls button,
+  .touch-controls output {
+    min-width: 2.15rem;
+    padding-inline: 0.5rem;
+    font-size: 0.62rem;
+  }
+
+  .touch-controls output {
+    min-width: 4.2rem;
   }
 }
 

@@ -12,18 +12,20 @@
   </head>
   <body>
     <main class="stage" aria-label="Procedural koi simulation">
-      <div class="display" id="display">
-        <canvas id="pond" aria-label="Animated procedural koi"></canvas>
+      <div class="pond-shell" id="display">
+        <div class="display">
+          <canvas id="pond" aria-label="Animated procedural koi"></canvas>
 
-        <header class="hud hud--top" id="hud-top">
-          <span>PROCEDURAL KOI / COLOR SPINE STUDY</span>
-          <span id="fish-count">FISH: 10</span>
-        </header>
+          <header class="hud hud--top" id="hud-top">
+            <span>PROCEDURAL KOI / COLOR SPINE STUDY</span>
+            <span id="fish-count">FISH: 10</span>
+          </header>
 
-        <footer class="hud hud--bottom" id="hud-bottom">
-          <span id="state-label">STATE: WANDERING</span>
-          <span class="desktop-help">CLICK CALLS&nbsp;&nbsp; SPACE SCATTERS&nbsp;&nbsp; [ ] COUNT&nbsp;&nbsp; D SPINE&nbsp;&nbsp; H UI</span>
-        </footer>
+          <footer class="hud hud--bottom" id="hud-bottom">
+            <span id="state-label">STATE: WANDERING</span>
+            <span class="desktop-help">CLICK CALLS&nbsp;&nbsp; SPACE SCATTERS&nbsp;&nbsp; [ ] COUNT&nbsp;&nbsp; D SPINE&nbsp;&nbsp; H UI</span>
+          </footer>
+        </div>
 
         <nav class="touch-controls" id="touch-controls" aria-label="Simulation controls">
           <button type="button" id="scatter-button">Scatter</button>
