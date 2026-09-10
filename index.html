@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050505" />
+    <meta
+      name="description"
+      content="A one-bit procedural koi study rendered with Three.js."
+    />
+    <title>Procedural Koi — Three.js</title>
+  </head>
+  <body>
+    <main class="stage" aria-label="Procedural koi simulation">
+      <div class="display" id="display">
+        <canvas id="pond" aria-label="Animated procedural koi"></canvas>
+
+        <header class="hud hud--top" id="hud-top">
+          <span>PROCEDURAL KOI / ONE-BIT SPINE STUDY</span>
+          <span id="fish-count">FISH: 10</span>
+        </header>
+
+        <footer class="hud hud--bottom" id="hud-bottom">
+          <span id="state-label">STATE: WANDERING</span>
+          <span class="desktop-help">CLICK CALLS&nbsp;&nbsp; SPACE SCATTERS&nbsp;&nbsp; [ ] COUNT&nbsp;&nbsp; D SPINE&nbsp;&nbsp; H UI</span>
+        </footer>
+
+        <nav class="touch-controls" id="touch-controls" aria-label="Simulation controls">
+          <button type="button" id="scatter-button">Scatter</button>
+          <button type="button" id="remove-button" aria-label="Remove one fish">−</button>
+          <output id="touch-count" aria-live="polite">10 fish</output>
+          <button type="button" id="add-button" aria-label="Add one fish">+</button>
+          <button type="button" id="debug-button" aria-pressed="false">Spine</button>
+        </nav>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

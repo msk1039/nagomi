@@ -1,0 +1,146 @@
+:root {
+  color-scheme: dark;
+  font-family: "SFMono-Regular", "Cascadia Mono", "Roboto Mono", monospace;
+  background: #050505;
+  color: #f5f5f0;
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #050505;
+}
+
+button,
+canvas {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stage {
+  display: grid;
+  width: 100vw;
+  height: 100dvh;
+  place-items: center;
+  background: #050505;
+}
+
+.display {
+  position: relative;
+  width: min(100vw, calc(100dvh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 0 0 1px #222;
+}
+
+#pond {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+}
+
+.hud {
+  position: absolute;
+  left: 1.7%;
+  right: 1.7%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #fff;
+  font-size: clamp(7px, 1.2vw, 12px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.hud--top {
+  top: 3%;
+}
+
+.hud--bottom {
+  bottom: 3.2%;
+}
+
+.touch-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  gap: 0.35rem;
+  transform: translateX(-50%);
+}
+
+.touch-controls button,
+.touch-controls output {
+  min-width: 2.4rem;
+  height: 2.1rem;
+  padding: 0 0.7rem;
+  border: 1px solid #fff;
+  border-radius: 0;
+  background: #000;
+  color: #fff;
+  font: 600 0.68rem/1 "SFMono-Regular", "Cascadia Mono", monospace;
+  text-transform: uppercase;
+}
+
+.touch-controls output {
+  display: grid;
+  min-width: 4.8rem;
+  place-items: center;
+}
+
+.touch-controls button:active,
+.touch-controls button[aria-pressed="true"] {
+  background: #fff;
+  color: #000;
+}
+
+.touch-controls button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.interface-hidden .hud,
+.interface-hidden .touch-controls {
+  display: none !important;
+}
+
+@media (pointer: coarse), (max-width: 700px) {
+  .desktop-help {
+    display: none;
+  }
+
+  .touch-controls {
+    display: flex;
+  }
+
+  .hud--bottom {
+    bottom: 3.5%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pond {
+    cursor: default;
+  }
+}
