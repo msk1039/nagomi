@@ -42,12 +42,12 @@ export const CANVAS = {
 } as const;
 
 export const SIMULATION = {
-  updatesPerSecond: 120,
+  updatesPerSecond: 60,
   spineNodes: 14,
 } as const;
 
 export const FISH = {
-  initialCount: 10,
+  initialCount: 14,
   maximumCount: 48,
   regularLength: [27, 40] as const,
   regularWidthRatio: [0.17, 0.20] as const,
@@ -57,7 +57,7 @@ export const FISH = {
   eyeColor: 0x171815,
   shadow: {
     color: 0x0b211e,
-    opacity: 0.56,
+    opacity: 0.46,
     offset: { x: 4.4, y: 10.4 },
   },
   callResponse: {
@@ -65,12 +65,12 @@ export const FISH = {
     minimumDelaySeconds: 0.04,
     distanceAtMaximumDelay: 360,
     maximumDistanceDelaySeconds: 1.05,
-    distanceExponent: 1.35,
+    distanceExponent: 1.5,
     randomJitterSeconds: 0.18,
     temperamentDelaySeconds: 0.22,
     targetLifetimeSeconds: 4.4,
-    chaseBoostSeconds: 1.6,
-    chaseSpeedMultiplier: 1.30,
+    chaseBoostSeconds: 2.6,
+    chaseSpeedMultiplier: 2.30,
     initialExtraSpeedMultiplier: 0.34,
   },
 } as const;
@@ -153,16 +153,16 @@ export const POND_BED = {
   shallowColor: [0.145, 0.395, 0.255] as Rgb,
   speckColor: [0.020, 0.065, 0.040] as Rgb,
   verticalTone: 0.20,
-  grainScale: 0.34,
-  edgeDarkening: 0.07,
+  grainScale: 0.54,
+  edgeDarkening: 0.57,
 } as const;
 
 export const WATER = {
-  maximumRipples: 8,
-  ripplesPerCall: 3,
-  rippleIntervalSeconds: 0.030,
+  maximumRipples: 16,
+  ripplesPerCall: 5,
+  rippleIntervalSeconds: 0.023,
   rippleStrengthFalloff: 0.92,
-  rippleLifetime: 1.8,
+  rippleLifetime: 2.2,
   colorTint: [0.96, 1.02, 1.0] as Rgb,
   largeCurrentColor: [0.022, 0.068, 0.047] as Rgb,
   largeCurrentCoreColor: [0.052, 0.155, 0.108] as Rgb,
@@ -170,9 +170,9 @@ export const WATER = {
   detailCurrentCoreColor: [0.028, 0.090, 0.061] as Rgb,
   largeCellSize: 58,
   detailCellSize: 32,
-  rippleStartRadius: 2,
+  rippleStartRadius: 4,
   rippleExpansionSpeed: 62,
-  rippleDistortion: 5.25,
+  rippleDistortion: 5.55,
 } as const;
 
 export const LOTUS = {
