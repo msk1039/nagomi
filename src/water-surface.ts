@@ -226,9 +226,15 @@ export class WaterSurfacePass {
   public update(school: School, time: number): void {
     let activeCount = 0;
     for (const ripple of school.ripples) {
-      if (!ripple.alive || activeCount >= MAX_RIPPLES) continue;
+      if (
+        !ripple.alive ||
+        ripple.age < 0 ||
+        activeCount >= MAX_RIPPLES
+      ) {
+        continue;
+      }
       const life = Math.min(1, ripple.age / RIPPLE_LIFETIME);
-      const strength = 1 - life * 0.18;
+      const strength = ripple.strength * (1 - life * 0.18);
       this.rippleData[activeCount].set(
         ripple.center.x,
         ripple.center.y,

@@ -31,6 +31,7 @@ export class Koi {
   public reactivity = 0.7;
   public callDelay = 0;
   public respondedToCall = false;
+  public callResponseAge = 0;
   public tailEffort = 0.6;
   public behaviorRng = 1;
   public state = SwimState.Glide;
@@ -56,6 +57,7 @@ export class Koi {
     this.reactivity = random.range(0.35, 1);
     this.callDelay = 0;
     this.respondedToCall = false;
+    this.callResponseAge = 0;
     this.behaviorRng = (0x9e3779b9 ^ Math.imul(index + 1, 0x85ebca6b)) >>> 0;
     this.state = index % 5;
 

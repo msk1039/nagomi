@@ -60,6 +60,19 @@ export const FISH = {
     opacity: 0.36,
     offset: { x: 4.4, y: 6.4 },
   },
+  callResponse: {
+    // Farther fish receive a larger part of maximumDistanceDelaySeconds.
+    minimumDelaySeconds: 0.04,
+    distanceAtMaximumDelay: 360,
+    maximumDistanceDelaySeconds: 1.05,
+    distanceExponent: 1.35,
+    randomJitterSeconds: 0.18,
+    temperamentDelaySeconds: 0.22,
+    targetLifetimeSeconds: 4.4,
+    chaseBoostSeconds: 1.6,
+    chaseSpeedMultiplier: 1.30,
+    initialExtraSpeedMultiplier: 0.34,
+  },
 } as const;
 
 // The order is Kohaku, Sanke, Showa, Ogon, Tancho, and Shiro.
@@ -146,6 +159,9 @@ export const POND_BED = {
 
 export const WATER = {
   maximumRipples: 8,
+  ripplesPerCall: 2,
+  rippleIntervalSeconds: 0.075,
+  rippleStrengthFalloff: 0.72,
   rippleLifetime: 1.8,
   colorTint: [0.96, 1.02, 1.0] as Rgb,
   largeCurrentColor: [0.022, 0.068, 0.047] as Rgb,

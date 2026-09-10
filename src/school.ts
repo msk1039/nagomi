@@ -1,11 +1,13 @@
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
+  FISH,
   INITIAL_FISH,
   MAX_FISH,
   MAX_RIPPLES,
   RIPPLE_LIFETIME,
   SPINE_NODES,
+  WATER,
 } from "./config";
 import { Koi, SwimState } from "./koi";
 import {
@@ -27,6 +29,7 @@ import {
 export interface Ripple {
   center: Vec2;
   age: number;
+  strength: number;
   alive: boolean;
 }
 
@@ -35,6 +38,7 @@ export class School {
   public readonly ripples: Ripple[] = Array.from({ length: MAX_RIPPLES }, () => ({
     center: vec(),
     age: 0,
+    strength: 1,
     alive: false,
   }));
 
@@ -66,8 +70,19 @@ export class School {
     this.targetAge = 0;
     for (let index = 0; index < this.count; index += 1) {
       const fish = this.fish[index];
-      fish.callDelay = this.random.range(0.04, 1.15) * (1.22 - fish.reactivity);
+      const response = FISH.callResponse;
+      const distanceToCall = length(sub(fish.position, point));
+      const distanceAmount = Math.pow(
+        clamp(distanceToCall / response.distanceAtMaximumDelay, 0, 1),
+        response.distanceExponent,
+      );
+      fish.callDelay =
+        response.minimumDelaySeconds +
+        distanceAmount * response.maximumDistanceDelaySeconds +
+        this.random.range(0, response.randomJitterSeconds) +
+        (1 - fish.reactivity) * response.temperamentDelaySeconds;
       fish.respondedToCall = false;
+      fish.callResponseAge = 0;
     }
     this.addRipple(point);
   }
@@ -85,15 +100,24 @@ export class School {
 
   public update(dt: number, time: number): void {
     this.targetAge += dt;
-    if (this.targetActive && this.targetAge > 4.0) this.targetActive = false;
+    if (
+      this.targetActive &&
+      this.targetAge > FISH.callResponse.targetLifetimeSeconds
+    ) {
+      this.targetActive = false;
+    }
 
     const desired: Vec2[] = [];
     const desiredSpeed: number[] = [];
     for (let index = 0; index < this.count; index += 1) {
       const fish = this.fish[index];
       fish.callDelay = Math.max(0, fish.callDelay - dt);
+      if (this.targetActive && fish.respondedToCall) {
+        fish.callResponseAge += dt;
+      }
       if (this.targetActive && fish.callDelay <= 0 && !fish.respondedToCall) {
         fish.respondedToCall = true;
+        fish.callResponseAge = 0;
         this.enterState(fish, SwimState.Burst);
       }
       this.updateNaturalState(fish, dt);
@@ -241,7 +265,10 @@ export class School {
       const toTarget = sub(this.target, fish.position);
       const distance = length(toTarget);
       if (distance > 13) {
-        const chasePull = this.targetAge < 2.65 ? 3.35 : 2.45;
+        const chasePull =
+          fish.callResponseAge < FISH.callResponse.chaseBoostSeconds
+            ? 3.35
+            : 2.45;
         steering = add(steering, mul(normalize(toTarget), chasePull));
       } else {
         const targetDirection = normalize(toTarget, forward);
@@ -255,10 +282,18 @@ export class School {
 
   private desiredSpeedFor(index: number): number {
     const fish = this.fish[index];
-    const chasing = this.targetActive && fish.callDelay <= 0 && this.targetAge < 2.65;
+    const chaseDuration = FISH.callResponse.chaseBoostSeconds;
+    const chasing =
+      this.targetActive &&
+      fish.respondedToCall &&
+      fish.callResponseAge < chaseDuration;
     if (chasing) {
-      const chaseFade = 1 - clamp(this.targetAge / 2.65, 0, 1);
-      return fish.maximumSpeed * (1.30 + chaseFade * 0.34);
+      const chaseFade = 1 - clamp(fish.callResponseAge / chaseDuration, 0, 1);
+      return (
+        fish.maximumSpeed *
+        (FISH.callResponse.chaseSpeedMultiplier +
+          chaseFade * FISH.callResponse.initialExtraSpeedMultiplier)
+      );
     }
 
     let intention = fish.cruiseSpeed;
@@ -339,10 +374,17 @@ export class School {
   }
 
   private addRipple(point: Vec2): void {
-    const ripple = this.ripples[this.nextRipple];
-    ripple.center = { ...point };
-    ripple.age = 0;
-    ripple.alive = true;
-    this.nextRipple = (this.nextRipple + 1) % this.ripples.length;
+    const rippleCount = Math.min(
+      WATER.ripplesPerCall,
+      this.ripples.length,
+    );
+    for (let index = 0; index < rippleCount; index += 1) {
+      const ripple = this.ripples[this.nextRipple];
+      ripple.center = { ...point };
+      ripple.age = -index * WATER.rippleIntervalSeconds;
+      ripple.strength = Math.pow(WATER.rippleStrengthFalloff, index);
+      ripple.alive = true;
+      this.nextRipple = (this.nextRipple + 1) % this.ripples.length;
+    }
   }
 }
