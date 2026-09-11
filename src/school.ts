@@ -10,6 +10,7 @@ import {
   WATER,
 } from "./config";
 import { Koi, SwimState } from "./koi";
+import { TinyFishSchools } from "./tiny-fish";
 import {
   add,
   clamp,
@@ -41,6 +42,7 @@ export class School {
     strength: 1,
     alive: false,
   }));
+  public readonly tinyFish = new TinyFishSchools();
 
   public count: number = INITIAL_FISH;
   public targetActive = false;
@@ -61,6 +63,7 @@ export class School {
   public reset(): void {
     this.random.state = 0x00c0ffee;
     this.fish.forEach((fish, index) => fish.reset(index, this.random));
+    this.tinyFish.reset();
     this.targetActive = false;
   }
 
@@ -84,6 +87,7 @@ export class School {
       fish.respondedToCall = false;
       fish.callResponseAge = 0;
     }
+    this.tinyFish.fleeFrom(point);
     this.addRipple(point);
   }
 
@@ -127,6 +131,7 @@ export class School {
     for (let index = 0; index < this.count; index += 1) {
       this.integrate(this.fish[index], desired[index], desiredSpeed[index], dt);
     }
+    this.tinyFish.update(dt, time);
 
     for (const ripple of this.ripples) {
       if (!ripple.alive) continue;

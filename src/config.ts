@@ -52,6 +52,19 @@ export interface ButterflySpawnSetting {
   palette: number;
 }
 
+export interface TinyFishSchoolSetting {
+  x: number;
+  y: number;
+  count: number;
+  heading: number;
+  spreadX: number;
+  spreadY: number;
+  palette: number;
+  sizeScale: number;
+  speedScale: number;
+  swirlDirection: -1 | 1;
+}
+
 export const CANVAS = {
   width: 480,
   height: 270,
@@ -90,6 +103,125 @@ export const FISH = {
     initialExtraSpeedMultiplier: 0.34,
   },
 } as const;
+
+export const TINY_FISH = {
+  visibleSchoolCount: 3,
+  bodyLength: [5.8, 8.2] as const,
+  bodyWidthRatio: [0.10, 0.32] as const,
+  tailLengthScale: 0.34,
+  tailWidthScale: 0.92,
+  finReachScale: 1.28,
+  eyeRadius: 0.28,
+  cruiseSpeed: [19, 27] as const,
+  speedVariation: 0.46,
+  edgeMargin: 14,
+  neighbourRadius: 25,
+  separationRadius: 6.2,
+  cohesionStrength: 0.62,
+  alignmentStrength: 0.56,
+  separationStrength: 2.8,
+  swirlStrength: 0.46,
+  wanderStrength: 0.34,
+  edgeStrength: 4.8,
+  steeringResponse: 4.7,
+  maximumTurnRate: 2.4,
+  flee: {
+    reactionRadius: 270,
+    propagationSpeed: 180,
+    randomDelay: 0.16,
+    duration: [1.45, 2.35] as const,
+    speed: [49, 64] as const,
+    directionStrength: 5.8,
+    schoolingStrength: 0.58,
+    initialImpulse: 13,
+  },
+  shadow: {
+    color: 0x12352f,
+    opacity: 0.28,
+    offset: { x: 1.5, y: 2.8 },
+  },
+  palettes: [
+    {
+      body: 0xffe66d,
+      light: 0xfff3a0,
+      accent: 0xff8c42,
+      fin: 0xffc857,
+      eye: 0x203638,
+    },
+    {
+      body: 0x56dffc,
+      light: 0xb2f2ff,
+      accent: 0x3877ed,
+      fin: 0x85edff,
+      eye: 0x173b52,
+    },
+    {
+      body: 0xff72ad,
+      light: 0xffbad2,
+      accent: 0xffd05e,
+      fin: 0xff9bc2,
+      eye: 0x4d2940,
+    },
+    {
+      body: 0xa8ed48,
+      light: 0xddff8c,
+      accent: 0x38bb78,
+      fin: 0xc5f56d,
+      eye: 0x254535,
+    },
+  ],
+} as const;
+
+export const TINY_FISH_SCHOOLS: readonly TinyFishSchoolSetting[] = [
+  {
+    x: 174,
+    y: 82,
+    count: 24,
+    heading: 0.35,
+    spreadX: 32,
+    spreadY: 15,
+    palette: 0,
+    sizeScale: 0.88,
+    speedScale: 1.04,
+    swirlDirection: 1,
+  },
+  {
+    x: 343,
+    y: 174,
+    count: 15,
+    heading: 2.75,
+    spreadX: 22,
+    spreadY: 11,
+    palette: 1,
+    sizeScale: 1.08,
+    speedScale: 0.95,
+    swirlDirection: -1,
+  },
+  {
+    x: 139,
+    y: 204,
+    count: 34,
+    heading: -0.72,
+    spreadX: 40,
+    spreadY: 18,
+    palette: 2,
+    sizeScale: 0.82,
+    speedScale: 1.12,
+    swirlDirection: 1,
+  },
+  {
+    x: 377,
+    y: 69,
+    count: 19,
+    heading: 2.2,
+    spreadX: 28,
+    spreadY: 13,
+    palette: 3,
+    sizeScale: 0.94,
+    speedScale: 1,
+    swirlDirection: -1,
+  },
+];
 
 // The order is Kohaku, Sanke, Showa, Ogon, Tancho, and Shiro.
 export const KOI_PALETTES: readonly KoiPaletteSetting[] = [

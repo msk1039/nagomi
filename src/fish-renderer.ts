@@ -27,6 +27,7 @@ import {
 } from "./math";
 import { PondBedPass } from "./pond-bed";
 import { School } from "./school";
+import { TinyFishRenderer } from "./tiny-fish-renderer";
 import { WaterSurfacePass } from "./water-surface";
 
 const TRIANGLE_FLOAT_CAPACITY = 72_000;
@@ -170,6 +171,7 @@ export class FishRenderer {
   private readonly underwaterTarget: THREE.WebGLRenderTarget;
   private readonly pondBed: PondBedPass;
   private readonly waterSurface: WaterSurfacePass;
+  private readonly tinyFishRenderer = new TinyFishRenderer();
   private readonly duckweed = new DuckweedPass();
   private readonly lotusLeaves = new LotusLeavesPass();
   private readonly butterflies = new ButterflyPass();
@@ -206,7 +208,11 @@ export class FishRenderer {
     this.pondBed = new PondBedPass();
     this.waterSurface = new WaterSurfacePass(this.underwaterTarget.texture);
     this.bedScene.add(this.pondBed.mesh);
-    this.shadowScene.add(this.lotusLeaves.shadowGroup);
+    this.shadowScene.add(
+      this.lotusLeaves.shadowGroup,
+      this.tinyFishRenderer.shadowGroup,
+    );
+    this.fishScene.add(this.tinyFishRenderer.group);
     this.surfaceScene.add(this.waterSurface.mesh);
     this.surfaceShadowScene.add(
       this.duckweed.shadowGroup,
@@ -293,6 +299,7 @@ export class FishRenderer {
     this.outerTriangles.commit();
     this.bodyTriangles.commit();
     this.outlineLines.commit();
+    this.tinyFishRenderer.update(school.tinyFish);
     this.waterSurface.update(school, time);
     this.duckweed.update(time);
     this.lotusLeaves.update(time);
