@@ -5,7 +5,6 @@ import {
   INITIAL_FISH,
   MAX_FISH,
   MAX_RIPPLES,
-  RIPPLE_LIFETIME,
   SPINE_NODES,
   WATER,
 } from "./config";
@@ -58,6 +57,11 @@ export class School {
 
   public setCount(count: number): void {
     this.count = clamp(Math.round(count), 1, MAX_FISH);
+  }
+
+  public refreshConfig(): void {
+    this.count = clamp(Math.round(FISH.initialCount), 1, MAX_FISH);
+    this.reset();
   }
 
   public reset(): void {
@@ -136,7 +140,7 @@ export class School {
     for (const ripple of this.ripples) {
       if (!ripple.alive) continue;
       ripple.age += dt;
-      if (ripple.age > RIPPLE_LIFETIME) ripple.alive = false;
+      if (ripple.age > WATER.rippleLifetime) ripple.alive = false;
     }
   }
 

@@ -175,6 +175,15 @@ export class FishRenderer {
   private readonly duckweed = new DuckweedPass();
   private readonly lotusLeaves = new LotusLeavesPass();
   private readonly butterflies = new ButterflyPass();
+  private readonly fishShadowMaterial = new THREE.MeshBasicMaterial({
+    color: FISH.shadow.color,
+    opacity: FISH.shadow.opacity,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
   private readonly shadowTriangles: GeometryBatch;
   private readonly outerTriangles: GeometryBatch;
   private readonly bodyTriangles: GeometryBatch;
@@ -237,15 +246,6 @@ export class FishRenderer {
     this.bodyTriangles = new GeometryBatch(blackGeometry, TRIANGLE_FLOAT_CAPACITY, true);
     this.outlineLines = new GeometryBatch(lineGeometry, LINE_FLOAT_CAPACITY, true);
 
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-      color: FISH.shadow.color,
-      opacity: FISH.shadow.opacity,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
     const outerMaterial = new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
@@ -267,7 +267,7 @@ export class FishRenderer {
       toneMapped: false,
     });
 
-    const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
+    const shadowMesh = new THREE.Mesh(shadowGeometry, this.fishShadowMaterial);
     const outerMesh = new THREE.Mesh(whiteGeometry, outerMaterial);
     const bodyMesh = new THREE.Mesh(blackGeometry, bodyMaterial);
     const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
@@ -280,6 +280,23 @@ export class FishRenderer {
     lines.renderOrder = 3;
     this.shadowScene.add(shadowMesh);
     this.fishScene.add(outerMesh, bodyMesh, lines);
+  }
+
+  public refreshConfig(): void {
+    this.fishShadowMaterial.color.setHex(FISH.shadow.color);
+    this.fishShadowMaterial.opacity = FISH.shadow.opacity;
+    for (let index = 0; index < this.appearances.length; index += 1) {
+      this.appearances[index] = createFishAppearance(index);
+    }
+    this.tinyFishRenderer.refreshConfig();
+    this.duckweed.refreshConfig();
+    this.lotusLeaves.refreshConfig();
+    this.butterflies.refreshConfig();
+  }
+
+  public dispose(): void {
+    this.underwaterTarget.dispose();
+    this.renderer.dispose();
   }
 
   public draw(school: School, time: number, showDebug: boolean): void {
@@ -300,6 +317,7 @@ export class FishRenderer {
     this.bodyTriangles.commit();
     this.outlineLines.commit();
     this.tinyFishRenderer.update(school.tinyFish);
+    this.pondBed.update();
     this.waterSurface.update(school, time);
     this.duckweed.update(time);
     this.lotusLeaves.update(time);

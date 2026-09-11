@@ -90,11 +90,71 @@ export class ButterflyPass {
     1_024,
     true,
   );
-  private readonly butterflies: Butterfly[];
+  private readonly shadowMaterial = new THREE.MeshBasicMaterial({
+    color: BUTTERFLIES.shadow.color,
+    opacity: BUTTERFLIES.shadow.opacity,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  private butterflies: Butterfly[] = [];
   private lastTime = -1;
 
   public constructor() {
-    this.butterflies = BUTTERFLY_SPAWNS.map((spawn, index) => {
+    this.butterflies = this.createButterflies();
+
+    this.shadowGeometry.name = "butterfly shadows";
+    this.shapeGeometry.name = "butterflies";
+    this.lineGeometry.name = "butterfly antennae";
+
+    const shapeMaterial = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const lineMaterial = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    });
+
+    const shadowMesh = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial);
+    const shapeMesh = new THREE.Mesh(this.shapeGeometry, shapeMaterial);
+    const lines = new THREE.LineSegments(this.lineGeometry, lineMaterial);
+    shadowMesh.frustumCulled = false;
+    shapeMesh.frustumCulled = false;
+    lines.frustumCulled = false;
+    shadowMesh.renderOrder = 4;
+    shapeMesh.renderOrder = 10;
+    lines.renderOrder = 11;
+    this.shadowGroup.add(shadowMesh);
+    this.group.add(shapeMesh, lines);
+    this.refreshConfig();
+  }
+
+  public refreshConfig(): void {
+    this.shadowMaterial.color.setHex(BUTTERFLIES.shadow.color);
+    this.shadowMaterial.opacity = BUTTERFLIES.shadow.opacity;
+    SHADOW_COLOR.setHex(BUTTERFLIES.shadow.color);
+    for (const [index, palette] of BUTTERFLIES.palettes.entries()) {
+      const target = PALETTES[index];
+      if (!target) continue;
+      target.wing.setHex(palette.wing);
+      target.wingLight.setHex(palette.wingLight);
+      target.accent.setHex(palette.accent);
+      target.body.setHex(palette.body);
+    }
+    this.butterflies = this.createButterflies();
+    this.lastTime = -1;
+  }
+
+  private createButterflies(): Butterfly[] {
+    return BUTTERFLY_SPAWNS.map((spawn, index) => {
       const randomState = (0x9e3779b9 ^ ((index + 1) * 0x85ebca6b)) >>> 0;
       const butterfly: Butterfly = {
         position: { x: spawn.x, y: spawn.y },
@@ -127,45 +187,6 @@ export class ButterflyPass {
       butterfly.stateAge = this.random(butterfly) * butterfly.stateDuration;
       return butterfly;
     });
-
-    this.shadowGeometry.name = "butterfly shadows";
-    this.shapeGeometry.name = "butterflies";
-    this.lineGeometry.name = "butterfly antennae";
-
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-      color: BUTTERFLIES.shadow.color,
-      opacity: BUTTERFLIES.shadow.opacity,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
-    const shapeMaterial = new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
-    const lineMaterial = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
-
-    const shadowMesh = new THREE.Mesh(this.shadowGeometry, shadowMaterial);
-    const shapeMesh = new THREE.Mesh(this.shapeGeometry, shapeMaterial);
-    const lines = new THREE.LineSegments(this.lineGeometry, lineMaterial);
-    shadowMesh.frustumCulled = false;
-    shapeMesh.frustumCulled = false;
-    lines.frustumCulled = false;
-    shadowMesh.renderOrder = 4;
-    shapeMesh.renderOrder = 10;
-    lines.renderOrder = 11;
-    this.shadowGroup.add(shadowMesh);
-    this.group.add(shapeMesh, lines);
   }
 
   public update(time: number): void {

@@ -151,24 +151,33 @@ export class LotusLeavesPass {
   private readonly leafGeometry = new THREE.BufferGeometry();
   private readonly veinGeometry = new THREE.BufferGeometry();
   private readonly flowerGeometry = new THREE.BufferGeometry();
+  private readonly shadowMaterial = new THREE.MeshBasicMaterial({
+    color: LOTUS.shadow.color,
+    opacity: LOTUS.shadow.opacity,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
   private readonly shadowBatch = new LotusGeometryBatch(
     this.shadowGeometry,
-    4_096,
+    20_000,
     false,
   );
   private readonly leafBatch = new LotusGeometryBatch(
     this.leafGeometry,
-    6_144,
+    20_000,
     true,
   );
   private readonly veinBatch = new LotusGeometryBatch(
     this.veinGeometry,
-    2_048,
+    8_000,
     true,
   );
   private readonly flowerBatch = new LotusGeometryBatch(
     this.flowerGeometry,
-    4_096,
+    10_000,
     true,
   );
 
@@ -178,15 +187,6 @@ export class LotusLeavesPass {
     this.veinGeometry.name = "lotus veins";
     this.flowerGeometry.name = "lotus flowers";
 
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-      color: LOTUS.shadow.color,
-      opacity: LOTUS.shadow.opacity,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
     const leafMaterial = new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
@@ -208,7 +208,7 @@ export class LotusLeavesPass {
       toneMapped: false,
     });
 
-    const shadowMesh = new THREE.Mesh(this.shadowGeometry, shadowMaterial);
+    const shadowMesh = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial);
     const leafMesh = new THREE.Mesh(this.leafGeometry, leafMaterial);
     const veins = new THREE.LineSegments(this.veinGeometry, veinMaterial);
     const flowers = new THREE.Mesh(this.flowerGeometry, flowerMaterial);
@@ -221,6 +221,30 @@ export class LotusLeavesPass {
     flowers.renderOrder = 3;
     this.shadowGroup.add(shadowMesh);
     this.group.add(leafMesh, veins, flowers);
+    this.refreshConfig();
+  }
+
+  public refreshConfig(): void {
+    this.shadowMaterial.color.setHex(LOTUS.shadow.color);
+    this.shadowMaterial.opacity = LOTUS.shadow.opacity;
+    for (const [index, palette] of LOTUS.leafPalettes.entries()) {
+      const target = PALETTES[index];
+      if (!target) continue;
+      target.base.setHex(palette.base);
+      target.light.setHex(palette.light);
+      target.shade.setHex(palette.shade);
+      target.vein.setHex(palette.vein);
+      target.center.setHex(palette.center);
+    }
+    for (const [index, palette] of LOTUS.flowerPalettes.entries()) {
+      const target = FLOWER_PALETTES[index];
+      if (!target) continue;
+      target.outerPetal.setHex(palette.outerPetal);
+      target.innerPetal.setHex(palette.innerPetal);
+      target.petalLight.setHex(palette.petalLight);
+      target.center.setHex(palette.center);
+      target.centerDark.setHex(palette.centerDark);
+    }
   }
 
   public update(time: number): void {
@@ -245,7 +269,9 @@ export class LotusLeavesPass {
         leaf.radius *
         LOTUS.radiusScale *
         (1 + Math.sin(time * 0.11 + leaf.phase) * 0.012);
-      const palette = PALETTES[leaf.palette];
+      const palette = PALETTES[
+        ((leaf.palette % PALETTES.length) + PALETTES.length) % PALETTES.length
+      ];
 
       this.drawLeaf(
         this.shadowBatch,
@@ -269,7 +295,11 @@ export class LotusLeavesPass {
           },
           flower.radius * LOTUS.flowerRadiusScale,
           flower.rotation + Math.sin(time * 0.12 + leaf.phase) * 0.04,
-          FLOWER_PALETTES[flower.palette],
+          FLOWER_PALETTES[
+            ((flower.palette % FLOWER_PALETTES.length) +
+              FLOWER_PALETTES.length) %
+              FLOWER_PALETTES.length
+          ],
         );
       }
     }

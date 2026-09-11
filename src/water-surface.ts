@@ -3,82 +3,9 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   MAX_RIPPLES,
-  RIPPLE_LIFETIME,
   WATER,
-  type Rgb,
 } from "./config";
 import { School } from "./school";
-
-const glslFloat = (value: number): string =>
-  Number.isInteger(value) ? `${value}.0` : `${value}`;
-const glslVec2 = (value: readonly [number, number]): string =>
-  `vec2(${value.map(glslFloat).join(", ")})`;
-const glslVec3 = (color: Rgb): string =>
-  `vec3(${color.map(glslFloat).join(", ")})`;
-const [currentWaveA, currentWaveB, currentWaveC] =
-  WATER.currentDistortion.waves;
-
-const currentEffectShader = WATER.showCurrentEffect
-  ? /* glsl */ `
-    vec2 wavePixel = directionalWavePixel(distortedPixel, uResolution, uTime);
-    vec2 warpedPixel = warpWater(wavePixel);
-
-    float largeBorder = cellularBorderDistance(
-      warpedPixel / ${glslFloat(WATER.largeCellSize)}
-    );
-    float largeWidthNoise = valueNoise(warpedPixel * 0.018 + vec2(3.7, 11.2));
-    float largeVein = 1.0 - smoothstep(
-      0.032 + largeWidthNoise * 0.010,
-      0.125 + largeWidthNoise * 0.022,
-      largeBorder
-    );
-    float largeCore = 1.0 - smoothstep(0.010, 0.052, largeBorder);
-
-    float secondaryLargeBorder = cellularBorderDistance(
-      warpedPixel / ${glslFloat(WATER.secondaryLargeCellSize)}
-      + vec2(5.2, 8.4)
-    );
-    float secondaryLargeWidthNoise = valueNoise(
-      warpedPixel * 0.015 + vec2(17.6, -6.8)
-    );
-    float secondaryLargeVein = 1.0 - smoothstep(
-      0.032 + secondaryLargeWidthNoise * 0.010,
-      0.125 + secondaryLargeWidthNoise * 0.022,
-      secondaryLargeBorder
-    );
-    float secondaryLargeCore =
-      1.0 - smoothstep(0.010, 0.052, secondaryLargeBorder);
-
-    float detailBorder = cellularBorderDistance(
-      warpedPixel / ${glslFloat(WATER.detailCellSize)} + vec2(9.6, 4.3)
-    );
-    float detailRegion = smoothstep(
-      0.48,
-      0.75,
-      valueNoise(warpedPixel * 0.008 + vec2(-5.1, 17.8))
-    );
-    float detailVein =
-      (1.0 - smoothstep(0.030, 0.105, detailBorder)) * detailRegion;
-    float detailCore =
-      (1.0 - smoothstep(0.008, 0.043, detailBorder)) * detailRegion;
-
-    color +=
-      (
-        largeVein * ${glslVec3(WATER.largeCurrentColor)}
-        + largeCore * ${glslVec3(WATER.largeCurrentCoreColor)}
-      ) * ${glslFloat(WATER.largeCurrentOpacity)};
-    color +=
-      (
-        secondaryLargeVein * ${glslVec3(WATER.largeCurrentColor)}
-        + secondaryLargeCore * ${glslVec3(WATER.largeCurrentCoreColor)}
-      ) * ${glslFloat(WATER.secondaryLargeCurrentOpacity)};
-    color +=
-      (
-        detailVein * ${glslVec3(WATER.detailCurrentColor)}
-        + detailCore * ${glslVec3(WATER.detailCurrentCoreColor)}
-      ) * ${glslFloat(WATER.detailCurrentOpacity)};
-  `
-  : "";
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -99,6 +26,29 @@ const fragmentShader = /* glsl */ `
   uniform float uTime;
   uniform int uRippleCount;
   uniform vec4 uRipples[MAX_RIPPLES];
+  uniform float uRippleLifetime;
+  uniform float uRippleStartRadius;
+  uniform float uRippleExpansionSpeed;
+  uniform float uRippleDistortion;
+  uniform vec3 uColorTint;
+  uniform float uShowCurrentEffect;
+  uniform float uLargeCellSize;
+  uniform float uLargeCurrentOpacity;
+  uniform float uSecondaryLargeCellSize;
+  uniform float uSecondaryLargeCurrentOpacity;
+  uniform float uDetailCellSize;
+  uniform float uDetailCurrentOpacity;
+  uniform vec3 uLargeCurrentColor;
+  uniform vec3 uLargeCurrentCoreColor;
+  uniform vec3 uDetailCurrentColor;
+  uniform vec3 uDetailCurrentCoreColor;
+  uniform float uCurrentAmplitude;
+  uniform vec2 uWaveDirectionA;
+  uniform vec2 uWaveDirectionB;
+  uniform vec2 uWaveDirectionC;
+  uniform vec3 uWaveFrequency;
+  uniform vec3 uWaveSpeed;
+  uniform vec3 uWaveStrength;
   varying vec2 vUv;
 
   vec2 hash22(vec2 point) {
@@ -185,32 +135,32 @@ const fragmentShader = /* glsl */ `
     vec2 centered = (pixel / resolution - 0.5) * vec2(aspect, 1.0);
 
     float phaseA =
-      dot(centered, ${glslVec2(currentWaveA.direction)})
-      * ${glslFloat(currentWaveA.frequency)}
-      - time * ${glslFloat(currentWaveA.speed)};
+      dot(centered, uWaveDirectionA)
+      * uWaveFrequency.x
+      - time * uWaveSpeed.x;
     float phaseB =
-      dot(centered, ${glslVec2(currentWaveB.direction)})
-      * ${glslFloat(currentWaveB.frequency)}
-      - time * ${glslFloat(currentWaveB.speed)};
+      dot(centered, uWaveDirectionB)
+      * uWaveFrequency.y
+      - time * uWaveSpeed.y;
     float phaseC =
-      dot(centered, ${glslVec2(currentWaveC.direction)})
-      * ${glslFloat(currentWaveC.frequency)}
-      - time * ${glslFloat(currentWaveC.speed)};
+      dot(centered, uWaveDirectionC)
+      * uWaveFrequency.z
+      - time * uWaveSpeed.z;
 
     vec2 slope =
-      ${glslVec2(currentWaveA.direction)}
+      uWaveDirectionA
       * sin(phaseA)
-      * ${glslFloat(currentWaveA.strength)}
-      + ${glslVec2(currentWaveB.direction)}
+      * uWaveStrength.x
+      + uWaveDirectionB
       * sin(phaseB)
-      * ${glslFloat(currentWaveB.strength)}
-      + ${glslVec2(currentWaveC.direction)}
+      * uWaveStrength.y
+      + uWaveDirectionC
       * sin(phaseC)
-      * ${glslFloat(currentWaveC.strength)};
+      * uWaveStrength.z;
     vec2 uvOffset =
       slope
       * vec2(1.0 / aspect, 1.0)
-      * ${glslFloat(WATER.currentDistortion.amplitude)};
+      * uCurrentAmplitude;
     return pixel + uvOffset * resolution;
   }
 
@@ -229,12 +179,12 @@ const fragmentShader = /* glsl */ `
       float distanceToCenter = length(delta);
       vec2 radial = delta / max(distanceToCenter, 0.001);
       float radius =
-        ${glslFloat(WATER.rippleStartRadius)}
-        + ripple.z * ${glslFloat(WATER.rippleExpansionSpeed)};
+        uRippleStartRadius
+        + ripple.z * uRippleExpansionSpeed;
       float signedDistance = distanceToCenter - radius;
       float fade = 1.0 - smoothstep(
-        ${glslFloat(WATER.rippleLifetime * 0.58)},
-        ${glslFloat(WATER.rippleLifetime)},
+        uRippleLifetime * 0.58,
+        uRippleLifetime,
         ripple.z
       );
       float distortionBand = exp(-abs(signedDistance) * 0.30) * fade * ripple.w;
@@ -244,7 +194,7 @@ const fragmentShader = /* glsl */ `
         vec2(radial.x, -radial.y)
         * direction
         * distortionBand
-        * ${glslFloat(WATER.rippleDistortion)}
+        * uRippleDistortion
         / uResolution;
     }
 
@@ -256,8 +206,62 @@ const fragmentShader = /* glsl */ `
       (1.0 - sampleUv.y) * uResolution.y
     );
 
-    color *= ${glslVec3(WATER.colorTint)};
-    ${currentEffectShader}
+    color *= uColorTint;
+
+    if (uShowCurrentEffect > 0.5) {
+      vec2 wavePixel = directionalWavePixel(distortedPixel, uResolution, uTime);
+      vec2 warpedPixel = warpWater(wavePixel);
+
+      float largeBorder = cellularBorderDistance(
+        warpedPixel / max(uLargeCellSize, 0.001)
+      );
+      float largeWidthNoise = valueNoise(warpedPixel * 0.018 + vec2(3.7, 11.2));
+      float largeVein = 1.0 - smoothstep(
+        0.032 + largeWidthNoise * 0.010,
+        0.125 + largeWidthNoise * 0.022,
+        largeBorder
+      );
+      float largeCore = 1.0 - smoothstep(0.010, 0.052, largeBorder);
+
+      float secondaryLargeBorder = cellularBorderDistance(
+        warpedPixel / max(uSecondaryLargeCellSize, 0.001) + vec2(5.2, 8.4)
+      );
+      float secondaryLargeWidthNoise = valueNoise(
+        warpedPixel * 0.015 + vec2(17.6, -6.8)
+      );
+      float secondaryLargeVein = 1.0 - smoothstep(
+        0.032 + secondaryLargeWidthNoise * 0.010,
+        0.125 + secondaryLargeWidthNoise * 0.022,
+        secondaryLargeBorder
+      );
+      float secondaryLargeCore =
+        1.0 - smoothstep(0.010, 0.052, secondaryLargeBorder);
+
+      float detailBorder = cellularBorderDistance(
+        warpedPixel / max(uDetailCellSize, 0.001) + vec2(9.6, 4.3)
+      );
+      float detailRegion = smoothstep(
+        0.48,
+        0.75,
+        valueNoise(warpedPixel * 0.008 + vec2(-5.1, 17.8))
+      );
+      float detailVein =
+        (1.0 - smoothstep(0.030, 0.105, detailBorder)) * detailRegion;
+      float detailCore =
+        (1.0 - smoothstep(0.008, 0.043, detailBorder)) * detailRegion;
+
+      color +=
+        (largeVein * uLargeCurrentColor + largeCore * uLargeCurrentCoreColor)
+        * uLargeCurrentOpacity;
+      color +=
+        (
+          secondaryLargeVein * uLargeCurrentColor
+          + secondaryLargeCore * uLargeCurrentCoreColor
+        ) * uSecondaryLargeCurrentOpacity;
+      color +=
+        (detailVein * uDetailCurrentColor + detailCore * uDetailCurrentCoreColor)
+        * uDetailCurrentOpacity;
+    }
 
     gl_FragColor = vec4(color, 1.0);
   }
@@ -280,6 +284,29 @@ export class WaterSurfacePass {
         uTime: { value: 0 },
         uRippleCount: { value: 0 },
         uRipples: { value: this.rippleData },
+        uRippleLifetime: { value: 0 },
+        uRippleStartRadius: { value: 0 },
+        uRippleExpansionSpeed: { value: 0 },
+        uRippleDistortion: { value: 0 },
+        uColorTint: { value: new THREE.Color() },
+        uShowCurrentEffect: { value: 0 },
+        uLargeCellSize: { value: 0 },
+        uLargeCurrentOpacity: { value: 0 },
+        uSecondaryLargeCellSize: { value: 0 },
+        uSecondaryLargeCurrentOpacity: { value: 0 },
+        uDetailCellSize: { value: 0 },
+        uDetailCurrentOpacity: { value: 0 },
+        uLargeCurrentColor: { value: new THREE.Color() },
+        uLargeCurrentCoreColor: { value: new THREE.Color() },
+        uDetailCurrentColor: { value: new THREE.Color() },
+        uDetailCurrentCoreColor: { value: new THREE.Color() },
+        uCurrentAmplitude: { value: 0 },
+        uWaveDirectionA: { value: new THREE.Vector2() },
+        uWaveDirectionB: { value: new THREE.Vector2() },
+        uWaveDirectionC: { value: new THREE.Vector2() },
+        uWaveFrequency: { value: new THREE.Vector3() },
+        uWaveSpeed: { value: new THREE.Vector3() },
+        uWaveStrength: { value: new THREE.Vector3() },
       },
       vertexShader,
       fragmentShader,
@@ -292,6 +319,7 @@ export class WaterSurfacePass {
   }
 
   public update(school: School, time: number): void {
+    const rippleLifetime = Math.max(WATER.rippleLifetime, 0.001);
     let activeCount = 0;
     for (const ripple of school.ripples) {
       if (
@@ -301,7 +329,7 @@ export class WaterSurfacePass {
       ) {
         continue;
       }
-      const life = Math.min(1, ripple.age / RIPPLE_LIFETIME);
+      const life = Math.min(1, ripple.age / rippleLifetime);
       const strength = ripple.strength * (1 - life * 0.18);
       this.rippleData[activeCount].set(
         ripple.center.x,
@@ -313,5 +341,53 @@ export class WaterSurfacePass {
     }
     this.material.uniforms.uTime.value = time;
     this.material.uniforms.uRippleCount.value = activeCount;
+    this.material.uniforms.uRippleLifetime.value = rippleLifetime;
+    this.material.uniforms.uRippleStartRadius.value = WATER.rippleStartRadius;
+    this.material.uniforms.uRippleExpansionSpeed.value = WATER.rippleExpansionSpeed;
+    this.material.uniforms.uRippleDistortion.value = WATER.rippleDistortion;
+    this.material.uniforms.uColorTint.value.setRGB(...WATER.colorTint);
+    this.material.uniforms.uShowCurrentEffect.value = WATER.showCurrentEffect ? 1 : 0;
+    this.material.uniforms.uLargeCellSize.value = WATER.largeCellSize;
+    this.material.uniforms.uLargeCurrentOpacity.value = WATER.largeCurrentOpacity;
+    this.material.uniforms.uSecondaryLargeCellSize.value =
+      WATER.secondaryLargeCellSize;
+    this.material.uniforms.uSecondaryLargeCurrentOpacity.value =
+      WATER.secondaryLargeCurrentOpacity;
+    this.material.uniforms.uDetailCellSize.value = WATER.detailCellSize;
+    this.material.uniforms.uDetailCurrentOpacity.value =
+      WATER.detailCurrentOpacity;
+    this.material.uniforms.uLargeCurrentColor.value.setRGB(
+      ...WATER.largeCurrentColor,
+    );
+    this.material.uniforms.uLargeCurrentCoreColor.value.setRGB(
+      ...WATER.largeCurrentCoreColor,
+    );
+    this.material.uniforms.uDetailCurrentColor.value.setRGB(
+      ...WATER.detailCurrentColor,
+    );
+    this.material.uniforms.uDetailCurrentCoreColor.value.setRGB(
+      ...WATER.detailCurrentCoreColor,
+    );
+    const [waveA, waveB, waveC] = WATER.currentDistortion.waves;
+    this.material.uniforms.uCurrentAmplitude.value =
+      WATER.currentDistortion.amplitude;
+    this.material.uniforms.uWaveDirectionA.value.set(...waveA.direction);
+    this.material.uniforms.uWaveDirectionB.value.set(...waveB.direction);
+    this.material.uniforms.uWaveDirectionC.value.set(...waveC.direction);
+    this.material.uniforms.uWaveFrequency.value.set(
+      waveA.frequency,
+      waveB.frequency,
+      waveC.frequency,
+    );
+    this.material.uniforms.uWaveSpeed.value.set(
+      waveA.speed,
+      waveB.speed,
+      waveC.speed,
+    );
+    this.material.uniforms.uWaveStrength.value.set(
+      waveA.strength,
+      waveB.strength,
+      waveC.strength,
+    );
   }
 }
