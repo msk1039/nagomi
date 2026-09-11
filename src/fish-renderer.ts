@@ -6,6 +6,8 @@ import {
   MAX_FISH,
   SPINE_NODES,
 } from "./config";
+import { ButterflyPass } from "./butterflies";
+import { DuckweedPass } from "./duckweed";
 import {
   createFishAppearance,
   patchesFor,
@@ -168,7 +170,9 @@ export class FishRenderer {
   private readonly underwaterTarget: THREE.WebGLRenderTarget;
   private readonly pondBed: PondBedPass;
   private readonly waterSurface: WaterSurfacePass;
+  private readonly duckweed = new DuckweedPass();
   private readonly lotusLeaves = new LotusLeavesPass();
+  private readonly butterflies = new ButterflyPass();
   private readonly shadowTriangles: GeometryBatch;
   private readonly outerTriangles: GeometryBatch;
   private readonly bodyTriangles: GeometryBatch;
@@ -202,9 +206,17 @@ export class FishRenderer {
     this.pondBed = new PondBedPass();
     this.waterSurface = new WaterSurfacePass(this.underwaterTarget.texture);
     this.bedScene.add(this.pondBed.mesh);
+    this.shadowScene.add(this.lotusLeaves.shadowGroup);
     this.surfaceScene.add(this.waterSurface.mesh);
-    this.surfaceShadowScene.add(this.lotusLeaves.shadowGroup);
-    this.surfaceObjectScene.add(this.lotusLeaves.group);
+    this.surfaceShadowScene.add(
+      this.duckweed.shadowGroup,
+      this.butterflies.shadowGroup,
+    );
+    this.surfaceObjectScene.add(
+      this.duckweed.group,
+      this.lotusLeaves.group,
+      this.butterflies.group,
+    );
 
     const shadowGeometry = new THREE.BufferGeometry();
     const whiteGeometry = new THREE.BufferGeometry();
@@ -282,7 +294,9 @@ export class FishRenderer {
     this.bodyTriangles.commit();
     this.outlineLines.commit();
     this.waterSurface.update(school, time);
+    this.duckweed.update(time);
     this.lotusLeaves.update(time);
+    this.butterflies.update(time);
 
     this.renderer.setRenderTarget(this.underwaterTarget);
     this.renderer.clear();

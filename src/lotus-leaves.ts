@@ -267,7 +267,7 @@ export class LotusLeavesPass {
             x: center.x + flower.offsetX,
             y: center.y + flower.offsetY,
           },
-          flower.radius,
+          flower.radius * LOTUS.flowerRadiusScale,
           flower.rotation + Math.sin(time * 0.12 + leaf.phase) * 0.04,
           FLOWER_PALETTES[flower.palette],
         );

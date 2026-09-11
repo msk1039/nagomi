@@ -36,6 +36,22 @@ export interface LotusFlowerSetting {
   palette: number;
 }
 
+export interface DuckweedPatchSetting {
+  x: number;
+  y: number;
+  radius: number;
+  count: number;
+  phase: number;
+  palette: number;
+}
+
+export interface ButterflySpawnSetting {
+  x: number;
+  y: number;
+  phase: number;
+  palette: number;
+}
+
 export const CANVAS = {
   width: 480,
   height: 270,
@@ -194,6 +210,7 @@ export const LOTUS = {
   visibleLeafCount: 15,
   visibleFlowerCount: 4,
   radiusScale: 1.18,
+  flowerRadiusScale: 1.38,
   leafSegments: 18,
   veinCount: 7,
   notchHalfAngle: 0.30,
@@ -297,6 +314,104 @@ export const LOTUS_FLOWERS: readonly LotusFlowerSetting[] = [
     rotation: 0.15,
     palette: 1,
   },
+];
+
+export const DUCKWEED = {
+  visiblePatchCount: 8,
+  minimumLeafRadius: 1.05,
+  maximumLeafRadius: 3.35,
+  verticalScale: 0.76,
+  pairChance: 0.42,
+  spreadExponent: 0.68,
+  driftX: 5.55,
+  driftY: 5.42,
+  rotationAmount: 0.045,
+  shadow: {
+    color: 0x123b2d,
+    opacity: 0.24,
+    offset: { x: 1.4, y: 5.1 },
+  },
+  palettes: [
+    {
+      base: 0x6fc94f,
+      light: 0x9be66c,
+      shade: 0x45963e,
+      center: 0xc3ee75,
+    },
+    {
+      base: 0x83d35b,
+      light: 0xb1ed76,
+      shade: 0x549e43,
+      center: 0xd0f28a,
+    },
+  ],
+} as const;
+
+// Duckweed stays near the pond boundary and the existing lotus clusters.
+export const DUCKWEED_PATCHES: readonly DuckweedPatchSetting[] = [
+  { x: 28, y: 45, radius: 30, count: 42, phase: 0.3, palette: 0 },
+  { x: 102, y: 17, radius: 22, count: 28, phase: 1.7, palette: 1 },
+  { x: 447, y: 34, radius: 77, count: 138, phase: 2.8, palette: 0 },
+  { x: 470, y: 116, radius: 25, count: 34, phase: 4.1, palette: 1 },
+  { x: 451, y: 225, radius: 31, count: 44, phase: 5.3, palette: 0 },
+  { x: 378, y: 259, radius: 22, count: 29, phase: 0.9, palette: 1 },
+  { x: 71, y: 244, radius: 29, count: 40, phase: 3.4, palette: 0 },
+  { x: 13, y: 168, radius: 64, count: 200, phase: 4.8, palette: 0 },
+];
+
+export const BUTTERFLIES = {
+  visibleCount: 4,
+  edgeMargin: 14,
+  bodyLength: 3.8,
+  bodyWidth: 0.32,
+  headRadius: 0.72,
+  wingLength: 4.7,
+  wingWidth: 5.4,
+  wingSpotRadius: 0.58,
+  minimumSpeed: 8.5,
+  maximumSpeed: 30.5,
+  flowerApproachSpeed: 18,
+  turnResponsiveness: 3.4,
+  wanderTargetDistance: [42, 105] as const,
+  wanderTargetTurnRange: 2.2,
+  randomTurnInterval: [0.32, 1.15] as const,
+  randomTurnAngle: 0.72,
+  sharpTurnChance: 0.18,
+  sharpTurnAngle: 1.45,
+  turnSmoothing: 3.1,
+  curvedFlightStrength: 0.34,
+  curvedFlightFrequency: [0.65, 1.35] as const,
+  speedVariation: 0.27,
+  flowerArrivalRadius: 7.5,
+  flowerOrbitRadius: [7, 12] as const,
+  flowerOrbitSpeed: [0.9, 1.5] as const,
+  wanderDuration: [3.8, 7.4] as const,
+  flowerVisitDuration: [2.2, 4.6] as const,
+  flowerRestDuration: [0.8, 1.8] as const,
+  flowerVisitChance: 0.92,
+  flapSpeed: [17.5, 31.5] as const,
+  driftAmount: 1.3,
+  shadow: {
+    color: 0x17372f,
+    opacity: 0.20,
+    offset: { x: 2.4, y: 3.2 },
+    scale: 0.82,
+  },
+  palettes: [
+    { wing: 0xf3a64c, wingLight: 0xffd36b, accent: 0x75448b, body: 0x3e2d35 },
+    { wing: 0x71bce8, wingLight: 0xb8e4f5, accent: 0x315b9d, body: 0x293747 },
+    { wing: 0xe9789d, wingLight: 0xffb4c5, accent: 0x8f416b, body: 0x49303c },
+    { wing: 0xc4df58, wingLight: 0xeaf68a, accent: 0x508c61, body: 0x334239 },
+  ],
+} as const;
+
+export const BUTTERFLY_SPAWNS: readonly ButterflySpawnSetting[] = [
+  { x: 56, y: 61, phase: 0.2, palette: 0 },
+  { x: 416, y: 71, phase: 1.9, palette: 1 },
+  { x: 394, y: 214, phase: 3.6, palette: 2 },
+  { x: 101, y: 218, phase: 5.2, palette: 3 },
+  { x: 244, y: 30, phase: 0.9, palette: 1 },
+  { x: 252, y: 242, phase: 4.4, palette: 0 },
 ];
 
 // Compatibility names used by the simulation modules.
