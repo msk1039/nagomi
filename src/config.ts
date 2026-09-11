@@ -149,7 +149,8 @@ export const KOI_PATTERN_PATCHES: readonly (readonly KoiPatchSetting[])[] = [
 ];
 
 export const POND_BED = {
-  deepColor: [0.105, 0.335, 0.225] as Rgb,
+
+  deepColor: [0.486, 0.718, 0.631] as Rgb,
   shallowColor: [0.145, 0.395, 0.255] as Rgb,
   speckColor: [0.020, 0.065, 0.040] as Rgb,
   verticalTone: 0.20,
@@ -158,7 +159,7 @@ export const POND_BED = {
 } as const;
 
 export const WATER = {
-  showCurrentEffect: false,
+  showCurrentEffect: true,
   maximumRipples: 16,
   ripplesPerCall: 5,
   rippleIntervalSeconds: 0.023,
@@ -169,8 +170,21 @@ export const WATER = {
   largeCurrentCoreColor: [0.052, 0.155, 0.108] as Rgb,
   detailCurrentColor: [0.010, 0.034, 0.023] as Rgb,
   detailCurrentCoreColor: [0.028, 0.090, 0.061] as Rgb,
-  largeCellSize: 58,
-  detailCellSize: 15,
+  // Use 0 to hide one layer without changing its colors.
+  largeCellSize: 908,
+  largeCurrentOpacity: 0.99,
+  secondaryLargeCellSize:10,
+  secondaryLargeCurrentOpacity: 0.15,
+  detailCellSize: 20,
+  detailCurrentOpacity: 0.9,
+  currentDistortion: {
+    amplitude: 0.015,
+    waves: [
+      { direction: [0.94, 0.34], frequency: 22, speed: 0.92, strength: 1.2 },
+      { direction: [-0.38, 0.92], frequency: 31, speed: 0.51, strength: 0.55 },
+      { direction: [0.71, 0.71], frequency: 59, speed: -6.38, strength: 0.28 },
+    ],
+  },
   rippleStartRadius: 4,
   rippleExpansionSpeed: 62,
   rippleDistortion: 5.55,

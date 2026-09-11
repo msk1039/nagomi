@@ -11,9 +11,74 @@ import { School } from "./school";
 
 const glslFloat = (value: number): string =>
   Number.isInteger(value) ? `${value}.0` : `${value}`;
+const glslVec2 = (value: readonly [number, number]): string =>
+  `vec2(${value.map(glslFloat).join(", ")})`;
 const glslVec3 = (color: Rgb): string =>
   `vec3(${color.map(glslFloat).join(", ")})`;
-const currentEffectVisibility = WATER.showCurrentEffect ? "1.0" : "0.0";
+const [currentWaveA, currentWaveB, currentWaveC] =
+  WATER.currentDistortion.waves;
+
+const currentEffectShader = WATER.showCurrentEffect
+  ? /* glsl */ `
+    vec2 wavePixel = directionalWavePixel(distortedPixel, uResolution, uTime);
+    vec2 warpedPixel = warpWater(wavePixel);
+
+    float largeBorder = cellularBorderDistance(
+      warpedPixel / ${glslFloat(WATER.largeCellSize)}
+    );
+    float largeWidthNoise = valueNoise(warpedPixel * 0.018 + vec2(3.7, 11.2));
+    float largeVein = 1.0 - smoothstep(
+      0.032 + largeWidthNoise * 0.010,
+      0.125 + largeWidthNoise * 0.022,
+      largeBorder
+    );
+    float largeCore = 1.0 - smoothstep(0.010, 0.052, largeBorder);
+
+    float secondaryLargeBorder = cellularBorderDistance(
+      warpedPixel / ${glslFloat(WATER.secondaryLargeCellSize)}
+      + vec2(5.2, 8.4)
+    );
+    float secondaryLargeWidthNoise = valueNoise(
+      warpedPixel * 0.015 + vec2(17.6, -6.8)
+    );
+    float secondaryLargeVein = 1.0 - smoothstep(
+      0.032 + secondaryLargeWidthNoise * 0.010,
+      0.125 + secondaryLargeWidthNoise * 0.022,
+      secondaryLargeBorder
+    );
+    float secondaryLargeCore =
+      1.0 - smoothstep(0.010, 0.052, secondaryLargeBorder);
+
+    float detailBorder = cellularBorderDistance(
+      warpedPixel / ${glslFloat(WATER.detailCellSize)} + vec2(9.6, 4.3)
+    );
+    float detailRegion = smoothstep(
+      0.48,
+      0.75,
+      valueNoise(warpedPixel * 0.008 + vec2(-5.1, 17.8))
+    );
+    float detailVein =
+      (1.0 - smoothstep(0.030, 0.105, detailBorder)) * detailRegion;
+    float detailCore =
+      (1.0 - smoothstep(0.008, 0.043, detailBorder)) * detailRegion;
+
+    color +=
+      (
+        largeVein * ${glslVec3(WATER.largeCurrentColor)}
+        + largeCore * ${glslVec3(WATER.largeCurrentCoreColor)}
+      ) * ${glslFloat(WATER.largeCurrentOpacity)};
+    color +=
+      (
+        secondaryLargeVein * ${glslVec3(WATER.largeCurrentColor)}
+        + secondaryLargeCore * ${glslVec3(WATER.largeCurrentCoreColor)}
+      ) * ${glslFloat(WATER.secondaryLargeCurrentOpacity)};
+    color +=
+      (
+        detailVein * ${glslVec3(WATER.detailCurrentColor)}
+        + detailCore * ${glslVec3(WATER.detailCurrentCoreColor)}
+      ) * ${glslFloat(WATER.detailCurrentOpacity)};
+  `
+  : "";
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -60,20 +125,19 @@ const fragmentShader = /* glsl */ `
     );
   }
 
-  vec2 warpWater(vec2 pixel, float time) {
-    vec2 drift = vec2(time * 0.014, -time * 0.010);
-    float warpX = valueNoise(pixel * 0.010 + drift);
-    float warpY = valueNoise(pixel * 0.012 - drift.yx + vec2(19.4, 7.8));
+  vec2 warpWater(vec2 pixel) {
+    float warpX = valueNoise(pixel * 0.010);
+    float warpY = valueNoise(pixel * 0.012 + vec2(19.4, 7.8));
     float smallWarpX = valueNoise(
-      pixel * 0.022 + drift.yx * 1.7 + vec2(31.8, -12.1)
+      pixel * 0.022 + vec2(31.8, -12.1)
     );
     float smallWarpY = valueNoise(
-      pixel * 0.019 - drift * 1.5 + vec2(-8.2, 26.6)
+      pixel * 0.019 + vec2(-8.2, 26.6)
     );
 
     vec2 broadBend = vec2(
-      sin(pixel.y * 0.025 + warpY * 5.2 + time * 0.055),
-      cos(pixel.x * 0.022 + warpX * 5.6 - time * 0.047)
+      sin(pixel.y * 0.025 + warpY * 5.2),
+      cos(pixel.x * 0.022 + warpX * 5.6)
     );
     vec2 smallBend = vec2(
       sin((pixel.x + pixel.y) * 0.034 + smallWarpY * 4.8),
@@ -86,7 +150,7 @@ const fragmentShader = /* glsl */ `
       + smallBend * 4.5;
   }
 
-  float cellularBorderDistance(vec2 point, float time) {
+  float cellularBorderDistance(vec2 point) {
     vec2 cell = floor(point);
     vec2 local = fract(point);
     float nearest = 10.0;
@@ -96,8 +160,7 @@ const fragmentShader = /* glsl */ `
       for (int x = -1; x <= 1; x++) {
         vec2 neighbour = vec2(float(x), float(y));
         vec2 seed = hash22(cell + neighbour);
-        vec2 animatedPoint =
-          0.5 + 0.32 * sin(time * 0.14 + 6.2831853 * seed);
+        vec2 animatedPoint = 0.5 + 0.32 * sin(6.2831853 * seed);
         vec2 pointDelta = neighbour + animatedPoint - local;
         float influence = mix(
           0.68,
@@ -115,6 +178,40 @@ const fragmentShader = /* glsl */ `
     }
 
     return secondNearest - nearest;
+  }
+
+  vec2 directionalWavePixel(vec2 pixel, vec2 resolution, float time) {
+    float aspect = resolution.x / resolution.y;
+    vec2 centered = (pixel / resolution - 0.5) * vec2(aspect, 1.0);
+
+    float phaseA =
+      dot(centered, ${glslVec2(currentWaveA.direction)})
+      * ${glslFloat(currentWaveA.frequency)}
+      - time * ${glslFloat(currentWaveA.speed)};
+    float phaseB =
+      dot(centered, ${glslVec2(currentWaveB.direction)})
+      * ${glslFloat(currentWaveB.frequency)}
+      - time * ${glslFloat(currentWaveB.speed)};
+    float phaseC =
+      dot(centered, ${glslVec2(currentWaveC.direction)})
+      * ${glslFloat(currentWaveC.frequency)}
+      - time * ${glslFloat(currentWaveC.speed)};
+
+    vec2 slope =
+      ${glslVec2(currentWaveA.direction)}
+      * sin(phaseA)
+      * ${glslFloat(currentWaveA.strength)}
+      + ${glslVec2(currentWaveB.direction)}
+      * sin(phaseB)
+      * ${glslFloat(currentWaveB.strength)}
+      + ${glslVec2(currentWaveC.direction)}
+      * sin(phaseC)
+      * ${glslFloat(currentWaveC.strength)};
+    vec2 uvOffset =
+      slope
+      * vec2(1.0 / aspect, 1.0)
+      * ${glslFloat(WATER.currentDistortion.amplitude)};
+    return pixel + uvOffset * resolution;
   }
 
   void main() {
@@ -158,39 +255,9 @@ const fragmentShader = /* glsl */ `
       sampleUv.x * uResolution.x,
       (1.0 - sampleUv.y) * uResolution.y
     );
-    vec2 warpedPixel = warpWater(distortedPixel, uTime);
-
-    float largeBorder = cellularBorderDistance(
-      warpedPixel / ${glslFloat(WATER.largeCellSize)},
-      uTime
-    );
-    float largeWidthNoise = valueNoise(warpedPixel * 0.018 + vec2(3.7, 11.2));
-    float largeVein = 1.0 - smoothstep(
-      0.032 + largeWidthNoise * 0.010,
-      0.125 + largeWidthNoise * 0.022,
-      largeBorder
-    );
-    float largeCore = 1.0 - smoothstep(0.010, 0.052, largeBorder);
-
-    float detailBorder = cellularBorderDistance(
-      warpedPixel / ${glslFloat(WATER.detailCellSize)} + vec2(9.6, 4.3),
-      uTime * 0.86
-    );
-    float detailRegion = smoothstep(
-      0.48,
-      0.75,
-      valueNoise(warpedPixel * 0.008 + vec2(-5.1, 17.8))
-    );
-    float detailVein =
-      (1.0 - smoothstep(0.030, 0.105, detailBorder)) * detailRegion;
-    float detailCore =
-      (1.0 - smoothstep(0.008, 0.043, detailBorder)) * detailRegion;
 
     color *= ${glslVec3(WATER.colorTint)};
-    color += largeVein * ${glslVec3(WATER.largeCurrentColor)} * ${currentEffectVisibility};
-    color += largeCore * ${glslVec3(WATER.largeCurrentCoreColor)} * ${currentEffectVisibility};
-    color += detailVein * ${glslVec3(WATER.detailCurrentColor)} * ${currentEffectVisibility};
-    color += detailCore * ${glslVec3(WATER.detailCurrentCoreColor)} * ${currentEffectVisibility};
+    ${currentEffectShader}
 
     gl_FragColor = vec4(color, 1.0);
   }
