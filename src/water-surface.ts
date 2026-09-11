@@ -13,6 +13,7 @@ const glslFloat = (value: number): string =>
   Number.isInteger(value) ? `${value}.0` : `${value}`;
 const glslVec3 = (color: Rgb): string =>
   `vec3(${color.map(glslFloat).join(", ")})`;
+const currentEffectVisibility = WATER.showCurrentEffect ? "1.0" : "0.0";
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -186,10 +187,10 @@ const fragmentShader = /* glsl */ `
       (1.0 - smoothstep(0.008, 0.043, detailBorder)) * detailRegion;
 
     color *= ${glslVec3(WATER.colorTint)};
-    color += largeVein * ${glslVec3(WATER.largeCurrentColor)};
-    color += largeCore * ${glslVec3(WATER.largeCurrentCoreColor)};
-    color += detailVein * ${glslVec3(WATER.detailCurrentColor)};
-    color += detailCore * ${glslVec3(WATER.detailCurrentCoreColor)};
+    color += largeVein * ${glslVec3(WATER.largeCurrentColor)} * ${currentEffectVisibility};
+    color += largeCore * ${glslVec3(WATER.largeCurrentCoreColor)} * ${currentEffectVisibility};
+    color += detailVein * ${glslVec3(WATER.detailCurrentColor)} * ${currentEffectVisibility};
+    color += detailCore * ${glslVec3(WATER.detailCurrentCoreColor)} * ${currentEffectVisibility};
 
     gl_FragColor = vec4(color, 1.0);
   }

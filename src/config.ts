@@ -158,6 +158,7 @@ export const POND_BED = {
 } as const;
 
 export const WATER = {
+  showCurrentEffect: false,
   maximumRipples: 16,
   ripplesPerCall: 5,
   rippleIntervalSeconds: 0.023,
@@ -169,7 +170,7 @@ export const WATER = {
   detailCurrentColor: [0.010, 0.034, 0.023] as Rgb,
   detailCurrentCoreColor: [0.028, 0.090, 0.061] as Rgb,
   largeCellSize: 58,
-  detailCellSize: 32,
+  detailCellSize: 15,
   rippleStartRadius: 4,
   rippleExpansionSpeed: 62,
   rippleDistortion: 5.55,
