@@ -1,8 +1,11 @@
+import { inject } from "@vercel/analytics";
 import "./styles.css";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, FIXED_STEP } from "./config";
 import { FishRenderer } from "./fish-renderer";
 import { clamp, vec } from "./math";
 import { School } from "./school";
+
+inject();
 
 const requireElement = <T extends HTMLElement>(selector: string): T => {
   const element = document.querySelector<T>(selector);
