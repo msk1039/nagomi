@@ -26,6 +26,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
 import { ConfigEditor } from "./config-editor";
 import {
@@ -35,6 +36,7 @@ import {
   FIXED_STEP,
 } from "./config";
 import { FishRenderer } from "./fish-renderer";
+import { useIsMobile } from "./hooks/use-mobile";
 import { clamp, vec } from "./math";
 import {
   applyRuntimeConfigDraft,
@@ -71,6 +73,7 @@ function sceneStats(runtime: PondRuntime, fps: number): SceneStats {
 }
 
 export function App() {
+  const isMobile = useIsMobile();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<PondRuntime | null>(null);
   const [stats, setStats] = useState<SceneStats>(emptyStats);
@@ -246,7 +249,8 @@ export function App() {
 
               <Drawer
                 modal={false}
-                swipeDirection="right"
+                swipeDirection={isMobile ? "down" : "right"}
+                showSwipeHandle={isMobile}
                 disablePointerDismissal
               >
                 <DrawerTrigger
@@ -290,6 +294,7 @@ export function App() {
                     <ConfigEditor
                       query={searchQuery}
                       draft={draftConfig}
+                      isMobile={isMobile}
                       hasPendingChanges={settingsDirty}
                       onApply={saveSettings}
                       onReset={resetSettings}
@@ -314,30 +319,42 @@ export function App() {
 
         {showInterface && (
           <nav className="control-dock" aria-label="Simulation controls">
-                <Button variant="secondary" size="sm" onClick={scatter}>
-                  <Shuffle aria-hidden="true" />
-                  <span>Scatter</span>
-                </Button>
-                <Separator orientation="vertical" />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => changeKoiCount(-1)}
-                  aria-label="Remove one koi"
-                >
-                  <Minus aria-hidden="true" />
-                </Button>
-                <output className="koi-count" aria-live="polite">
-                  {stats.koi}
-                </output>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => changeKoiCount(1)}
-                  aria-label="Add one koi"
-                >
-                  <Plus aria-hidden="true" />
-                </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={scatter}
+              aria-keyshortcuts="Space"
+            >
+              <Shuffle aria-hidden="true" />
+              <span>Scatter</span>
+              <Kbd className="control-shortcut">Space</Kbd>
+            </Button>
+            <Separator orientation="vertical" />
+            <Button
+              className="koi-step-button"
+              variant="ghost"
+              size="sm"
+              onClick={() => changeKoiCount(-1)}
+              aria-label="Remove one koi"
+              aria-keyshortcuts="["
+            >
+              <Minus aria-hidden="true" />
+              <Kbd className="control-shortcut">[</Kbd>
+            </Button>
+            <output className="koi-count" aria-live="polite">
+              {stats.koi}
+            </output>
+            <Button
+              className="koi-step-button"
+              variant="ghost"
+              size="sm"
+              onClick={() => changeKoiCount(1)}
+              aria-label="Add one koi"
+              aria-keyshortcuts="]"
+            >
+              <Plus aria-hidden="true" />
+              <Kbd className="control-shortcut">]</Kbd>
+            </Button>
           </nav>
         )}
       </div>

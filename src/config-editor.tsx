@@ -24,6 +24,7 @@ import {
 interface ConfigEditorProps {
   query: string;
   draft: RuntimeConfigDraft;
+  isMobile: boolean;
   hasPendingChanges: boolean;
   onApply: () => void;
   onReset: () => void;
@@ -364,6 +365,7 @@ function ConfigGroupDrawer({
   hasPendingChanges,
   onApply,
   onReset,
+  isMobile,
 }: {
   group: ConfigGroup;
   sections: RuntimeConfigSection[];
@@ -372,13 +374,19 @@ function ConfigGroupDrawer({
   hasPendingChanges: boolean;
   onApply: () => void;
   onReset: () => void;
+  isMobile: boolean;
 }) {
   const [selectedSectionId, setSelectedSectionId] = useState(group.sectionIds[0]);
   const selectedSection =
     sections.find((section) => section.id === selectedSectionId) ?? sections[0];
 
   return (
-    <Drawer modal={false} swipeDirection="right" disablePointerDismissal>
+    <Drawer
+      modal={false}
+      swipeDirection={isMobile ? "down" : "right"}
+      showSwipeHandle={isMobile}
+      disablePointerDismissal
+    >
       <DrawerTrigger render={<button className="config-section" type="button" />}>
         <span>
           <strong>{group.title}</strong>
@@ -443,6 +451,7 @@ function ConfigGroupDrawer({
 export const ConfigEditor = memo(function ConfigEditor({
   query,
   draft,
+  isMobile,
   hasPendingChanges,
   onApply,
   onReset,
@@ -482,6 +491,7 @@ export const ConfigEditor = memo(function ConfigEditor({
           hasPendingChanges={hasPendingChanges}
           onApply={onApply}
           onReset={onReset}
+          isMobile={isMobile}
         />
       ))}
     </div>
