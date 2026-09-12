@@ -29,6 +29,8 @@ import { PondBedPass } from "./pond-bed";
 import { School } from "./school";
 import { TinyFishRenderer } from "./tiny-fish-renderer";
 import { WaterSurfacePass } from "./water-surface";
+import { WeatherPass } from "./weather-pass";
+import type { WeatherPresetId } from "./weather";
 
 const TRIANGLE_FLOAT_CAPACITY = 72_000;
 const LINE_FLOAT_CAPACITY = 18_000;
@@ -159,6 +161,7 @@ export class FishRenderer {
   private readonly surfaceScene = new THREE.Scene();
   private readonly surfaceShadowScene = new THREE.Scene();
   private readonly surfaceObjectScene = new THREE.Scene();
+  private readonly weatherScene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(
     0,
     CANVAS_WIDTH,
@@ -169,8 +172,10 @@ export class FishRenderer {
   );
   private readonly surfaceCamera = new THREE.Camera();
   private readonly underwaterTarget: THREE.WebGLRenderTarget;
+  private readonly compositeTarget: THREE.WebGLRenderTarget;
   private readonly pondBed: PondBedPass;
   private readonly waterSurface: WaterSurfacePass;
+  private readonly weather: WeatherPass;
   private readonly tinyFishRenderer = new TinyFishRenderer();
   private readonly duckweed = new DuckweedPass();
   private readonly lotusLeaves = new LotusLeavesPass();
@@ -214,8 +219,17 @@ export class FishRenderer {
     });
     this.underwaterTarget.texture.generateMipmaps = false;
 
+    this.compositeTarget = new THREE.WebGLRenderTarget(CANVAS_WIDTH, CANVAS_HEIGHT, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      depthBuffer: false,
+      stencilBuffer: false,
+    });
+    this.compositeTarget.texture.generateMipmaps = false;
+
     this.pondBed = new PondBedPass();
     this.waterSurface = new WaterSurfacePass(this.underwaterTarget.texture);
+    this.weather = new WeatherPass(this.compositeTarget.texture);
     this.bedScene.add(this.pondBed.mesh);
     this.shadowScene.add(
       this.lotusLeaves.shadowGroup,
@@ -232,6 +246,7 @@ export class FishRenderer {
       this.lotusLeaves.group,
       this.butterflies.group,
     );
+    this.weatherScene.add(this.weather.mesh);
 
     const shadowGeometry = new THREE.BufferGeometry();
     const whiteGeometry = new THREE.BufferGeometry();
@@ -296,7 +311,14 @@ export class FishRenderer {
 
   public dispose(): void {
     this.underwaterTarget.dispose();
+    this.compositeTarget.dispose();
+    this.weather.dispose();
     this.renderer.dispose();
+  }
+
+  public setWeatherPreset(id: WeatherPresetId): void {
+    this.waterSurface.setWeatherPreset(id);
+    this.weather.setPreset(id);
   }
 
   public draw(school: School, time: number, showDebug: boolean): void {
@@ -330,13 +352,17 @@ export class FishRenderer {
     this.renderer.render(this.shadowScene, this.camera);
     this.renderer.render(this.fishScene, this.camera);
     this.renderer.autoClear = true;
-    this.renderer.setRenderTarget(null);
+    this.renderer.setRenderTarget(this.compositeTarget);
     this.renderer.clear();
     this.renderer.render(this.surfaceScene, this.surfaceCamera);
     this.renderer.autoClear = false;
     this.renderer.render(this.surfaceShadowScene, this.camera);
     this.renderer.render(this.surfaceObjectScene, this.camera);
     this.renderer.autoClear = true;
+    this.weather.update(time);
+    this.renderer.setRenderTarget(null);
+    this.renderer.clear();
+    this.renderer.render(this.weatherScene, this.surfaceCamera);
   }
 
   private buildRenderSpine(fish: Koi): void {

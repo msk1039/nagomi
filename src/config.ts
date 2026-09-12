@@ -306,13 +306,48 @@ export const POND_BED = {
   edgeDarkening: 0.57,
 } as const;
 
+export const RIPPLES = {
+  maximumInstances: 64,
+  types: {
+    touch: {
+      maximumActive: 16,
+      ripplesPerEvent: 5,
+      intervalSeconds: 0.023,
+      initialStrength: 1,
+      strengthFalloff: 0.92,
+      lifetime: 2.2,
+      startRadius: 4,
+      expansionSpeed: 62,
+      distortion: 5.55,
+      bandSharpness: 0.30,
+      fadeStart: 0.58,
+      strengthDecay: 0.18,
+    },
+    rain: {
+      maximumActive: 48,
+      ripplesPerEvent: 3,
+      intervalSeconds: 0.103,
+      initialStrength: 1.55,
+      strengthFalloff: 1,
+      lifetime: 1.25,
+      startRadius: 0.8,
+      expansionSpeed: 30,
+      distortion: 4.8,
+      bandSharpness: 0.62,
+      fadeStart: 0.34,
+      strengthDecay: 0.18,
+    },
+  },
+  rainEmitter: {
+    dropsPerSecond: 12,
+    frequencyVariation: 0.35,
+    maximumDropsPerFrame: 30,
+    edgeMargin: 5,
+  },
+} as const;
+
 export const WATER = {
   showCurrentEffect: true,
-  maximumRipples: 16,
-  ripplesPerCall: 5,
-  rippleIntervalSeconds: 0.023,
-  rippleStrengthFalloff: 0.92,
-  rippleLifetime: 2.2,
   colorTint: [0.96, 1.02, 1.0] as Rgb,
   largeCurrentColor: [0.022, 0.068, 0.047] as Rgb,
   largeCurrentCoreColor: [0.052, 0.155, 0.108] as Rgb,
@@ -333,9 +368,6 @@ export const WATER = {
       { direction: [0.71, 0.71], frequency: 59, speed: -6.38, strength: 0.28 },
     ],
   },
-  rippleStartRadius: 4,
-  rippleExpansionSpeed: 62,
-  rippleDistortion: 5.55,
 } as const;
 
 export const LOTUS = {
@@ -552,7 +584,8 @@ export const CANVAS_HEIGHT = CANVAS.height;
 export const MAX_FISH = FISH.maximumCount;
 export const INITIAL_FISH = FISH.initialCount;
 export const SPINE_NODES = SIMULATION.spineNodes;
-export const MAX_RIPPLES = WATER.maximumRipples;
-export const RIPPLE_LIFETIME = WATER.rippleLifetime;
+export const MAX_RIPPLES = RIPPLES.maximumInstances;
+export const MAX_RIPPLE_TYPES = Object.keys(RIPPLES.types).length;
+export const RIPPLE_LIFETIME = RIPPLES.types.touch.lifetime;
 export const FIXED_STEP = 1 / SIMULATION.updatesPerSecond;
 export const TAU = Math.PI * 2;

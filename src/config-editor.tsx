@@ -77,7 +77,7 @@ const CONFIG_GROUPS: readonly ConfigGroup[] = [
     id: "water",
     title: "Water",
     description: "Pond bed, currents, tint, and ripple behavior.",
-    sectionIds: ["pond-bed", "water"],
+    sectionIds: ["pond-bed", "water", "ripples"],
   },
   {
     id: "lotus",

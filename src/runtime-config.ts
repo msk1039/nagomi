@@ -10,6 +10,7 @@ import {
   LOTUS_FLOWERS,
   LOTUS_LEAVES,
   POND_BED,
+  RIPPLES,
   TINY_FISH,
   TINY_FISH_SCHOOLS,
   WATER,
@@ -67,9 +68,15 @@ export const RUNTIME_CONFIG_SECTIONS: readonly RuntimeConfigSection[] = [
   {
     id: "water",
     title: "Water",
-    description: "Currents, ripple timing, distortion, and tint.",
+    description: "Current layers, distortion, and tint.",
     value: WATER,
-    excludedKeys: ["maximumRipples"],
+  },
+  {
+    id: "ripples",
+    title: "Ripples",
+    description: "Touch and rain ripple shapes plus rainfall frequency.",
+    value: RIPPLES,
+    excludedKeys: ["maximumInstances"],
   },
   {
     id: "lotus",

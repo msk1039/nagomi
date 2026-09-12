@@ -4,9 +4,7 @@ import {
   FISH,
   INITIAL_FISH,
   MAX_FISH,
-  MAX_RIPPLES,
   SPINE_NODES,
-  WATER,
 } from "./config";
 import { Koi, SwimState } from "./koi";
 import { TinyFishSchools } from "./tiny-fish";
@@ -25,22 +23,11 @@ import {
   wrapAngle,
   XorShift32,
 } from "./math";
-
-export interface Ripple {
-  center: Vec2;
-  age: number;
-  strength: number;
-  alive: boolean;
-}
+import { RippleSystem } from "./ripple-system";
 
 export class School {
   public readonly fish: Koi[] = Array.from({ length: MAX_FISH }, () => new Koi());
-  public readonly ripples: Ripple[] = Array.from({ length: MAX_RIPPLES }, () => ({
-    center: vec(),
-    age: 0,
-    strength: 1,
-    alive: false,
-  }));
+  public readonly ripples = new RippleSystem();
   public readonly tinyFish = new TinyFishSchools();
 
   public count: number = INITIAL_FISH;
@@ -49,7 +36,6 @@ export class School {
   private random = new XorShift32();
   private target = vec(CANVAS_WIDTH * 0.5, CANVAS_HEIGHT * 0.5);
   private targetAge = 0;
-  private nextRipple = 0;
 
   public constructor() {
     this.fish.forEach((fish, index) => fish.reset(index, this.random));
@@ -68,7 +54,12 @@ export class School {
     this.random.state = 0x00c0ffee;
     this.fish.forEach((fish, index) => fish.reset(index, this.random));
     this.tinyFish.reset();
+    this.ripples.reset();
     this.targetActive = false;
+  }
+
+  public setRainIntensity(intensity: number): void {
+    this.ripples.setRainIntensity(intensity);
   }
 
   public callTo(point: Vec2): void {
@@ -92,7 +83,7 @@ export class School {
       fish.callResponseAge = 0;
     }
     this.tinyFish.fleeFrom(point);
-    this.addRipple(point);
+    this.ripples.trigger("touch", point);
   }
 
   public scatter(): void {
@@ -137,11 +128,7 @@ export class School {
     }
     this.tinyFish.update(dt, time);
 
-    for (const ripple of this.ripples) {
-      if (!ripple.alive) continue;
-      ripple.age += dt;
-      if (ripple.age > WATER.rippleLifetime) ripple.alive = false;
-    }
+    this.ripples.update(dt);
   }
 
   private behaviorUnit(fish: Koi): number {
@@ -382,18 +369,4 @@ export class School {
     }
   }
 
-  private addRipple(point: Vec2): void {
-    const rippleCount = Math.min(
-      WATER.ripplesPerCall,
-      this.ripples.length,
-    );
-    for (let index = 0; index < rippleCount; index += 1) {
-      const ripple = this.ripples[this.nextRipple];
-      ripple.center = { ...point };
-      ripple.age = -index * WATER.rippleIntervalSeconds;
-      ripple.strength = Math.pow(WATER.rippleStrengthFalloff, index);
-      ripple.alive = true;
-      this.nextRipple = (this.nextRipple + 1) % this.ripples.length;
-    }
-  }
 }
