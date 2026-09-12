@@ -130,7 +130,7 @@ export const FISH = {
     oscillation: 0.18,
   },
   feeding: {
-    intervalSeconds: [2, 4] as const,
+    intervalSeconds: [1, 4] as const,
     retryDelaySeconds: [0.55, 1.35] as const,
     eligibleDepth: 0.23,
     eligibleSpeedFraction: 0.62,
