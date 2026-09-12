@@ -101,6 +101,31 @@ const CONFIG_GROUPS: readonly ConfigGroup[] = [
 
 const STABLE_NUMBER_RANGES = new Map<string, NumberRange>();
 
+const explicitNumberRange = (
+  sectionId: string,
+  path: ConfigPath,
+): NumberRange | undefined => {
+  const fullPath = `${sectionId} ${pathText(path)}`.toLowerCase();
+  const key = String(path.at(-1) ?? "").toLowerCase();
+  if (
+    fullPath.includes("koi depth") &&
+    /depth|range|start|end/.test(fullPath)
+  ) {
+    return { min: 0, max: 1, step: 0.01 };
+  }
+  if (fullPath.includes("blur")) return { min: 0, max: 12, step: 0.1 };
+  if (fullPath.includes("openingangledegrees")) {
+    return { min: 10, max: 60, step: 1 };
+  }
+  if (fullPath.includes("distortion") || key === "strength") {
+    return { min: 0, max: 10, step: 0.05 };
+  }
+  if (fullPath.includes("duration") || fullPath.includes("seconds")) {
+    return { min: 0.1, max: 30, step: 0.1 };
+  }
+  return undefined;
+};
+
 const isContainer = (value: unknown): value is object =>
   value !== null && typeof value === "object";
 
@@ -177,7 +202,8 @@ const numberRange = (
   const id = `${sectionId}:${path.join(".")}`;
   const savedRange = STABLE_NUMBER_RANGES.get(id);
   if (savedRange) return savedRange;
-  const inferredRange = inferNumberRange(value, path);
+  const inferredRange =
+    explicitNumberRange(sectionId, path) ?? inferNumberRange(value, path);
   STABLE_NUMBER_RANGES.set(id, inferredRange);
   return inferredRange;
 };

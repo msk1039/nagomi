@@ -43,6 +43,7 @@ const fragmentShader = /* glsl */ `
   #define MAX_RIPPLE_TYPES ${MAX_RIPPLE_TYPES}
 
   uniform sampler2D uUnderwater;
+  uniform sampler2D uDisturbance;
   uniform vec2 uResolution;
   uniform float uTime;
   uniform int uRippleCount;
@@ -243,6 +244,10 @@ const fragmentShader = /* glsl */ `
         / uResolution;
     }
 
+    vec2 localDisturbance = texture2D(uDisturbance, vUv).xy;
+    displacement +=
+      vec2(localDisturbance.x, -localDisturbance.y) / uResolution;
+
     vec2 sampleUv = clamp(vUv + displacement, vec2(0.002), vec2(0.998));
     vec3 color = texture2D(uUnderwater, sampleUv).rgb;
 
@@ -388,10 +393,14 @@ export class WaterSurfacePass {
   };
   private previousTime = -1;
 
-  public constructor(underwaterTexture: THREE.Texture) {
+  public constructor(
+    underwaterTexture: THREE.Texture,
+    disturbanceTexture: THREE.Texture,
+  ) {
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         uUnderwater: { value: underwaterTexture },
+        uDisturbance: { value: disturbanceTexture },
         uResolution: { value: new THREE.Vector2(CANVAS_WIDTH, CANVAS_HEIGHT) },
         uTime: { value: 0 },
         uRippleCount: { value: 0 },

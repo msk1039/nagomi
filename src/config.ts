@@ -89,6 +89,54 @@ export const FISH = {
     opacity: 0.46,
     offset: { x: 4.4, y: 10.4 },
   },
+  depth: {
+    initialRange: [0.05, 0.18] as const,
+    shallowRange: [0.04, 0.22] as const,
+    deepRange: [0.45, 0.75] as const,
+    surfaceDurationSeconds: [8, 22] as const,
+    deepDurationSeconds: [4, 10] as const,
+    changeProbability: 0.72,
+    transitionSeconds: [2, 5] as const,
+    callRiseDepth: 0.035,
+    callRiseSeconds: 2.4,
+    visualStart: 0.10,
+    visualEnd: 0.72,
+    deepBrightness: 0.59,
+    deepSaturation: 0.76,
+    deepWaterTint: [0.66, 0.84, 0.80] as Rgb,
+    shadow: {
+      offset: { x: 4.4, y: 10.4 },
+      additionalOffset: { x: -3, y: -7 },
+      deepOpacityMultiplier: 1.2,
+      deepBlurPixels: 0,
+    },
+    localDistortion: {
+      strength: 2.3,
+      lengthScale: 0.72,
+      widthScale: 1.85,
+      waveFrequency: 8.5,
+      waveSpeed: 2.4,
+    },
+  },
+  tailWake: {
+    minimumSpeed: 8.5,
+    depthCutoff: 0.46,
+    depthFalloffExponent: 2.2,
+    lifetimeSeconds: 0.96,
+    length: [15, 27] as const,
+    bandWidth: 1.15,
+    openingAngleDegrees: 29,
+    strength: 0.78,
+    oscillation: 0.18,
+  },
+  feeding: {
+    intervalSeconds: [2, 4] as const,
+    retryDelaySeconds: [0.55, 1.35] as const,
+    eligibleDepth: 0.23,
+    eligibleSpeedFraction: 0.62,
+    mouthForwardOffset: 0.66,
+    animationDurationSeconds: 0.24,
+  },
   callResponse: {
     // Farther fish receive a larger part of maximumDistanceDelaySeconds.
     minimumDelaySeconds: 0.04,
@@ -337,11 +385,25 @@ export const RIPPLES = {
       fadeStart: 0.34,
       strengthDecay: 0.18,
     },
+    mouth: {
+      maximumActive: 10,
+      ripplesPerEvent: 1,
+      intervalSeconds: 0.08,
+      initialStrength: 0.50,
+      strengthFalloff: 0.65,
+      lifetime: 0.90,
+      startRadius: 1.2,
+      expansionSpeed: 17,
+      distortion: 10.4,
+      bandSharpness: 0.70,
+      fadeStart: 0.25,
+      strengthDecay: 0.45,
+    },
   },
   rainEmitter: {
     dropsPerSecond: 12,
     frequencyVariation: 0.35,
-    maximumDropsPerFrame: 30,
+    maximumDropsPerFrame: 40,
     edgeMargin: 5,
   },
 } as const;
@@ -586,6 +648,8 @@ export const INITIAL_FISH = FISH.initialCount;
 export const SPINE_NODES = SIMULATION.spineNodes;
 export const MAX_RIPPLES = RIPPLES.maximumInstances;
 export const MAX_RIPPLE_TYPES = Object.keys(RIPPLES.types).length;
+// Fixed GPU capacities are intentionally kept out of the runtime settings UI.
+export const MAX_WAKES = 32;
 export const RIPPLE_LIFETIME = RIPPLES.types.touch.lifetime;
 export const FIXED_STEP = 1 / SIMULATION.updatesPerSecond;
 export const TAU = Math.PI * 2;

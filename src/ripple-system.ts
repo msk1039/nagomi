@@ -20,6 +20,12 @@ export const RIPPLE_TYPE_ORDER = Object.keys(
   RIPPLES.types,
 ) as RippleType[];
 
+const RIPPLE_PRIORITY: Record<RippleType, number> = {
+  rain: 0,
+  mouth: 1,
+  touch: 2,
+};
+
 export class RippleSystem {
   public readonly instances: RippleInstance[] = Array.from(
     { length: MAX_RIPPLES },
@@ -110,16 +116,12 @@ export class RippleSystem {
     const maximumActive = RIPPLES.types[type].maximumActive;
     let activeOfType = 0;
     let oldestOfType: RippleInstance | undefined;
-    let oldestOverall: RippleInstance | undefined;
     let available: RippleInstance | undefined;
 
     for (const ripple of this.instances) {
       if (!ripple.alive) {
         available ??= ripple;
         continue;
-      }
-      if (!oldestOverall || ripple.age > oldestOverall.age) {
-        oldestOverall = ripple;
       }
       if (ripple.type !== type) continue;
       activeOfType += 1;
@@ -130,6 +132,21 @@ export class RippleSystem {
 
     if (activeOfType >= maximumActive) return oldestOfType;
     if (available) return available;
-    return oldestOfType ?? oldestOverall;
+
+    let replacement: RippleInstance | undefined;
+    let replacementPriority = Number.POSITIVE_INFINITY;
+    for (const ripple of this.instances) {
+      const priority = RIPPLE_PRIORITY[ripple.type];
+      if (priority > RIPPLE_PRIORITY[type]) continue;
+      if (
+        priority < replacementPriority ||
+        (priority === replacementPriority &&
+          (!replacement || ripple.age > replacement.age))
+      ) {
+        replacement = ripple;
+        replacementPriority = priority;
+      }
+    }
+    return replacement;
   }
 }

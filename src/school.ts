@@ -24,10 +24,12 @@ import {
   XorShift32,
 } from "./math";
 import { RippleSystem } from "./ripple-system";
+import { WakeSystem } from "./wake-system";
 
 export class School {
   public readonly fish: Koi[] = Array.from({ length: MAX_FISH }, () => new Koi());
   public readonly ripples = new RippleSystem();
+  public readonly wakes = new WakeSystem();
   public readonly tinyFish = new TinyFishSchools();
 
   public count: number = INITIAL_FISH;
@@ -55,6 +57,7 @@ export class School {
     this.fish.forEach((fish, index) => fish.reset(index, this.random));
     this.tinyFish.reset();
     this.ripples.reset();
+    this.wakes.reset();
     this.targetActive = false;
   }
 
@@ -117,18 +120,132 @@ export class School {
       if (this.targetActive && fish.callDelay <= 0 && !fish.respondedToCall) {
         fish.respondedToCall = true;
         fish.callResponseAge = 0;
+        fish.targetDepth = FISH.depth.callRiseDepth;
+        fish.depthTransitionRate = 3 / Math.max(FISH.depth.callRiseSeconds, 0.1);
         this.enterState(fish, SwimState.Burst);
       }
       this.updateNaturalState(fish, dt);
+      this.updateDepth(fish, dt);
+      this.updateFeeding(fish, dt);
       desired[index] = this.steeringFor(index, time);
       desiredSpeed[index] = this.desiredSpeedFor(index);
     }
     for (let index = 0; index < this.count; index += 1) {
-      this.integrate(this.fish[index], desired[index], desiredSpeed[index], dt);
+      const fish = this.fish[index];
+      this.integrate(fish, desired[index], desiredSpeed[index], dt);
+      this.emitTailWake(fish);
     }
     this.tinyFish.update(dt, time);
 
     this.ripples.update(dt);
+    this.wakes.update(dt);
+  }
+
+  private updateDepth(fish: Koi, dt: number): void {
+    fish.depthStateAge += dt;
+    const risingForCall = this.targetActive && fish.respondedToCall;
+    if (!risingForCall && fish.depthStateAge >= fish.depthStateDuration) {
+      fish.depthStateAge = 0;
+      if (this.behaviorUnit(fish) < FISH.depth.changeProbability) {
+        fish.inDeepPeriod = !fish.inDeepPeriod;
+      }
+      const range = fish.inDeepPeriod
+        ? FISH.depth.deepRange
+        : FISH.depth.shallowRange;
+      const durations = fish.inDeepPeriod
+        ? FISH.depth.deepDurationSeconds
+        : FISH.depth.surfaceDurationSeconds;
+      fish.targetDepth = this.behaviorRange(fish, range[0], range[1]);
+      fish.depthStateDuration = this.behaviorRange(
+        fish,
+        durations[0],
+        durations[1],
+      );
+      const transitionSeconds = this.behaviorRange(
+        fish,
+        FISH.depth.transitionSeconds[0],
+        FISH.depth.transitionSeconds[1],
+      );
+      fish.depthTransitionRate = 3 / Math.max(transitionSeconds, 0.1);
+    }
+
+    fish.depth +=
+      (fish.targetDepth - fish.depth) *
+      (1 - Math.exp(-fish.depthTransitionRate * dt));
+  }
+
+  private updateFeeding(fish: Koi, dt: number): void {
+    fish.gulpAnimation = Math.max(0, fish.gulpAnimation - dt);
+    fish.gulpCountdown -= dt;
+    if (fish.gulpCountdown > 0) return;
+
+    const calmState =
+      fish.state === SwimState.Hover ||
+      fish.state === SwimState.Coast ||
+      fish.state === SwimState.Glide;
+    const chasing = this.targetActive && fish.respondedToCall;
+    const eligible =
+      calmState &&
+      !chasing &&
+      fish.depth <= FISH.feeding.eligibleDepth &&
+      fish.speed <= fish.cruiseSpeed * FISH.feeding.eligibleSpeedFraction;
+
+    if (!eligible) {
+      fish.gulpCountdown = this.behaviorRange(
+        fish,
+        FISH.feeding.retryDelaySeconds[0],
+        FISH.feeding.retryDelaySeconds[1],
+      );
+      return;
+    }
+
+    const forwardX = Math.cos(fish.heading);
+    const forwardY = Math.sin(fish.heading);
+    const mouthDistance = fish.bodyWidth * FISH.feeding.mouthForwardOffset;
+    this.ripples.trigger("mouth", {
+      x: fish.position.x + forwardX * mouthDistance,
+      y: fish.position.y + forwardY * mouthDistance,
+    });
+    fish.gulpAnimation = FISH.feeding.animationDurationSeconds;
+    fish.gulpCountdown = this.behaviorRange(
+      fish,
+      FISH.feeding.intervalSeconds[0],
+      FISH.feeding.intervalSeconds[1],
+    );
+  }
+
+  private emitTailWake(fish: Koi): void {
+    const currentBeat = Math.floor(fish.swimPhase / Math.PI);
+    if (currentBeat === fish.lastWakePhase) return;
+    fish.lastWakePhase = currentBeat;
+
+    const speedAmount = clamp(
+      (fish.speed - FISH.tailWake.minimumSpeed) /
+        Math.max(fish.maximumSpeed - FISH.tailWake.minimumSpeed, 0.1),
+      0,
+      1,
+    );
+    const surfaceAmount = Math.pow(
+      clamp(1 - fish.depth / Math.max(FISH.tailWake.depthCutoff, 0.01), 0, 1),
+      FISH.tailWake.depthFalloffExponent,
+    );
+    const energy = speedAmount * clamp(fish.tailEffort, 0, 1.4) * surfaceAmount;
+    if (energy <= 0.025) return;
+
+    const tail = fish.spine[SPINE_NODES - 1];
+    const directionX = -Math.cos(fish.heading);
+    const directionY = -Math.sin(fish.heading);
+    const wakeLength =
+      FISH.tailWake.length[0] +
+      (FISH.tailWake.length[1] - FISH.tailWake.length[0]) * clamp(energy, 0, 1);
+    this.wakes.emit(
+      tail.x,
+      tail.y,
+      directionX,
+      directionY,
+      energy * FISH.tailWake.strength,
+      wakeLength,
+    );
   }
 
   private behaviorUnit(fish: Koi): number {

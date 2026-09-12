@@ -31,7 +31,7 @@ export const RUNTIME_CONFIG_SECTIONS: readonly RuntimeConfigSection[] = [
   {
     id: "koi",
     title: "Koi",
-    description: "Population, proportions, shadows, and call response.",
+    description: "Population, depth, wakes, feeding, shadows, and call response.",
     value: FISH,
     excludedKeys: ["maximumCount"],
   },
@@ -74,7 +74,7 @@ export const RUNTIME_CONFIG_SECTIONS: readonly RuntimeConfigSection[] = [
   {
     id: "ripples",
     title: "Ripples",
-    description: "Touch and rain ripple shapes plus rainfall frequency.",
+    description: "Touch, rain, and koi-mouth ripples plus rainfall frequency.",
     value: RIPPLES,
     excludedKeys: ["maximumInstances"],
   },
