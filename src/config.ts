@@ -349,7 +349,7 @@ export const POND_BED = {
   deepColor: [0.486, 0.718, 0.631] as Rgb,
   shallowColor: [0.145, 0.395, 0.255] as Rgb,
   speckColor: [0.020, 0.065, 0.040] as Rgb,
-  verticalTone: 0.20,
+  verticalTone: 0.80,
   grainScale: 0.54,
   edgeDarkening: 0.57,
 } as const;
