@@ -479,6 +479,15 @@ export function App() {
     setStats(sceneStats(runtime));
   };
 
+  const revealHiddenInterfaceOnMobile = (
+    event: ReactPointerEvent<HTMLElement>,
+  ): void => {
+    if (!isMobile || showInterface) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setShowInterface(true);
+  };
+
   const selectedWeather = getWeatherPreset(weatherPreset);
   const ambientUiHeldOpen = settingsOpen || weatherMenuOpen;
   const ambientUiHidden =
@@ -493,6 +502,7 @@ export function App() {
           : ""
       }`}
       aria-label="Procedural koi simulation"
+      onPointerDownCapture={revealHiddenInterfaceOnMobile}
     >
       <div className="pond-shell">
         <div className="display">
