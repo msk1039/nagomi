@@ -9,6 +9,10 @@
     "allowImportingTsExtensions": false,
     "isolatedModules": true,
     "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "noEmit": true,
     "strict": true,
     "noUnusedLocals": true,

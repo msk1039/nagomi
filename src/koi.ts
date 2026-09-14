@@ -33,6 +33,15 @@ export class Koi {
   public respondedToCall = false;
   public callResponseAge = 0;
   public tailEffort = 0.6;
+  public depth = 0.08;
+  public targetDepth = 0.08;
+  public depthTransitionRate = 1;
+  public depthStateAge = 0;
+  public depthStateDuration = 10;
+  public inDeepPeriod = false;
+  public gulpCountdown = 8;
+  public gulpAnimation = 0;
+  public lastWakePhase = 0;
   public behaviorRng = 1;
   public state = SwimState.Glide;
 
@@ -53,12 +62,30 @@ export class Koi {
     this.bodyWidth = this.bodyLength * random.range(widthRange[0], widthRange[1]);
     this.phaseOffset = random.range(0, TAU);
     this.swimPhase = this.phaseOffset;
+    this.lastWakePhase = Math.floor(this.swimPhase / Math.PI);
     this.wanderSeed = random.range(0, 100);
     this.reactivity = random.range(0.35, 1);
     this.callDelay = 0;
     this.respondedToCall = false;
     this.callResponseAge = 0;
     this.behaviorRng = (0x9e3779b9 ^ Math.imul(index + 1, 0x85ebca6b)) >>> 0;
+    this.depth = random.range(FISH.depth.initialRange[0], FISH.depth.initialRange[1]);
+    this.targetDepth = this.depth;
+    this.depthTransitionRate = 3 / random.range(
+      FISH.depth.transitionSeconds[0],
+      FISH.depth.transitionSeconds[1],
+    );
+    this.depthStateDuration = random.range(
+      FISH.depth.surfaceDurationSeconds[0],
+      FISH.depth.surfaceDurationSeconds[1],
+    );
+    this.depthStateAge = random.range(0, this.depthStateDuration * 0.7);
+    this.inDeepPeriod = false;
+    this.gulpCountdown = random.range(
+      FISH.feeding.intervalSeconds[0],
+      FISH.feeding.intervalSeconds[1],
+    );
+    this.gulpAnimation = 0;
     this.state = index % 5;
 
     const durations: ReadonlyArray<readonly [number, number]> = [

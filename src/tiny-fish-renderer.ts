@@ -29,6 +29,15 @@ export class TinyFishRenderer {
   private readonly shadowGeometry = new THREE.BufferGeometry();
   private readonly shapeGeometry = new THREE.BufferGeometry();
   private readonly detailGeometry = new THREE.BufferGeometry();
+  private readonly shadowMaterial = new THREE.MeshBasicMaterial({
+    color: TINY_FISH.shadow.color,
+    opacity: TINY_FISH.shadow.opacity,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
   private readonly shadowBatch = new SurfaceGeometryBatch(
     this.shadowGeometry,
     16_384,
@@ -49,15 +58,6 @@ export class TinyFishRenderer {
     this.shapeGeometry.name = "tiny fish silhouettes";
     this.detailGeometry.name = "tiny fish markings";
 
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-      color: TINY_FISH.shadow.color,
-      opacity: TINY_FISH.shadow.opacity,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
     const colorMaterial = new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
@@ -66,7 +66,7 @@ export class TinyFishRenderer {
       toneMapped: false,
     });
 
-    const shadowMesh = new THREE.Mesh(this.shadowGeometry, shadowMaterial);
+    const shadowMesh = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial);
     const shapeMesh = new THREE.Mesh(this.shapeGeometry, colorMaterial);
     const detailMesh = new THREE.Mesh(this.detailGeometry, colorMaterial);
     shadowMesh.frustumCulled = false;
@@ -77,6 +77,21 @@ export class TinyFishRenderer {
     detailMesh.renderOrder = 5;
     this.shadowGroup.add(shadowMesh);
     this.group.add(shapeMesh, detailMesh);
+    this.refreshConfig();
+  }
+
+  public refreshConfig(): void {
+    this.shadowMaterial.color.setHex(TINY_FISH.shadow.color);
+    this.shadowMaterial.opacity = TINY_FISH.shadow.opacity;
+    for (const [index, palette] of TINY_FISH.palettes.entries()) {
+      const target = PALETTES[index];
+      if (!target) continue;
+      target.body.setHex(palette.body);
+      target.light.setHex(palette.light);
+      target.accent.setHex(palette.accent);
+      target.fin.setHex(palette.fin);
+      target.eye.setHex(palette.eye);
+    }
   }
 
   public update(schools: TinyFishSchools): void {

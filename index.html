@@ -1,42 +1,79 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#050505" />
+    <meta name="theme-color" content="#0b2825" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://koi.m4yank.com/" />
     <meta
       name="description"
-      content="A colorful procedural koi pond rendered with Three.js."
+      content="Relax with Nagomi, an interactive procedural koi pond with responsive fish, water ripples, changing weather, lotus leaves, and ambient river sound."
     />
-    <title>Procedural Koi — Three.js</title>
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Nagomi" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Nagomi — Interactive Koi Pond" />
+    <meta
+      property="og:description"
+      content="A calm, interactive koi pond with responsive fish, ripples, weather, lotus leaves, and ambient river sound."
+    />
+    <meta property="og:url" content="https://koi.m4yank.com/" />
+    <meta
+      property="og:image"
+      content="https://koi.m4yank.com/nagomi-social-v1.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Pixel-art koi swimming among lotus leaves in Nagomi's dark green pond"
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nagomi — Interactive Koi Pond" />
+    <meta
+      name="twitter:description"
+      content="A calm, interactive koi pond with responsive fish, ripples, weather, lotus leaves, and ambient river sound."
+    />
+    <meta
+      name="twitter:image"
+      content="https://koi.m4yank.com/nagomi-social-v1.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="Pixel-art koi swimming among lotus leaves in Nagomi's dark green pond"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Nagomi",
+        "url": "https://koi.m4yank.com/",
+        "description": "An interactive procedural koi pond with responsive fish, water ripples, changing weather, lotus leaves, and ambient river sound.",
+        "applicationCategory": "EntertainmentApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript and WebGL"
+      }
+    </script>
+    <title>Nagomi — Interactive Koi Pond</title>
   </head>
   <body>
-    <main class="stage" aria-label="Procedural koi simulation">
-      <div class="pond-shell" id="display">
-        <div class="display">
-          <canvas id="pond" aria-label="Animated procedural koi"></canvas>
-
-          <header class="hud hud--top" id="hud-top">
-            <span>PROCEDURAL KOI / COLOR SPINE STUDY</span>
-            <span id="fish-count">FISH: 10</span>
-          </header>
-
-          <footer class="hud hud--bottom" id="hud-bottom">
-            <span id="state-label">STATE: WANDERING</span>
-            <span class="desktop-help">CLICK CALLS&nbsp;&nbsp; SPACE SCATTERS&nbsp;&nbsp; [ ] COUNT&nbsp;&nbsp; D SPINE&nbsp;&nbsp; H UI</span>
-          </footer>
-        </div>
-
-        <nav class="touch-controls" id="touch-controls" aria-label="Simulation controls">
-          <button type="button" id="scatter-button">Scatter</button>
-          <button type="button" id="remove-button" aria-label="Remove one fish">−</button>
-          <output id="touch-count" aria-live="polite">10 fish</output>
-          <button type="button" id="add-button" aria-label="Add one fish">+</button>
-          <button type="button" id="debug-button" aria-pressed="false">Spine</button>
-        </nav>
-      </div>
-    </main>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <noscript>
+      <main>
+        <h1>Nagomi — Interactive Koi Pond</h1>
+        <p>
+          Nagomi is a relaxing procedural koi pond with responsive fish, water
+          ripples, changing weather, lotus leaves, and ambient river sound.
+          JavaScript is required to run the interactive pond.
+        </p>
+      </main>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

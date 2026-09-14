@@ -27,12 +27,50 @@ import {
 } from "./math";
 import { PondBedPass } from "./pond-bed";
 import { School } from "./school";
+import { SurfaceDisturbancePass } from "./surface-disturbance";
 import { TinyFishRenderer } from "./tiny-fish-renderer";
 import { WaterSurfacePass } from "./water-surface";
+import { WeatherPass } from "./weather-pass";
+import type { WeatherPresetId } from "./weather";
 
 const TRIANGLE_FLOAT_CAPACITY = 72_000;
 const LINE_FLOAT_CAPACITY = 18_000;
 const DEFAULT_COLOR = new THREE.Color(0xffffff);
+
+const shadowVertexShader = /* glsl */ `
+  varying float vStrength;
+  void main() {
+    vStrength = color.r;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const shadowFragmentShader = /* glsl */ `
+  precision highp float;
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  varying float vStrength;
+  void main() {
+    gl_FragColor = vec4(uColor, uOpacity * vStrength);
+  }
+`;
+
+function shadowMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(FISH.shadow.color) },
+      uOpacity: { value: opacity },
+    },
+    vertexShader: shadowVertexShader,
+    fragmentShader: shadowFragmentShader,
+    vertexColors: true,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+}
 
 class GeometryBatch {
   private readonly values: Float32Array;
@@ -155,10 +193,12 @@ export class FishRenderer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly bedScene = new THREE.Scene();
   private readonly shadowScene = new THREE.Scene();
+  private readonly fishShadowScene = new THREE.Scene();
   private readonly fishScene = new THREE.Scene();
   private readonly surfaceScene = new THREE.Scene();
   private readonly surfaceShadowScene = new THREE.Scene();
   private readonly surfaceObjectScene = new THREE.Scene();
+  private readonly weatherScene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(
     0,
     CANVAS_WIDTH,
@@ -169,12 +209,16 @@ export class FishRenderer {
   );
   private readonly surfaceCamera = new THREE.Camera();
   private readonly underwaterTarget: THREE.WebGLRenderTarget;
+  private readonly compositeTarget: THREE.WebGLRenderTarget;
   private readonly pondBed: PondBedPass;
+  private readonly surfaceDisturbance = new SurfaceDisturbancePass();
   private readonly waterSurface: WaterSurfacePass;
+  private readonly weather: WeatherPass;
   private readonly tinyFishRenderer = new TinyFishRenderer();
   private readonly duckweed = new DuckweedPass();
   private readonly lotusLeaves = new LotusLeavesPass();
   private readonly butterflies = new ButterflyPass();
+  private readonly fishShadowMaterial = shadowMaterial(1);
   private readonly shadowTriangles: GeometryBatch;
   private readonly outerTriangles: GeometryBatch;
   private readonly bodyTriangles: GeometryBatch;
@@ -183,6 +227,14 @@ export class FishRenderer {
     { length: MAX_FISH },
     (_, index) => createFishAppearance(index),
   );
+  private readonly depthAppearances = Array.from(
+    { length: MAX_FISH },
+    (_, index) => createFishAppearance(index),
+  );
+  private readonly shadowStrengthColor = new THREE.Color();
+  private readonly targetFishShadowColor = new THREE.Color(FISH.shadow.color);
+  private previousAppearanceTime = -1;
+  private currentVisualDepth = 0;
 
   public constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -205,8 +257,20 @@ export class FishRenderer {
     });
     this.underwaterTarget.texture.generateMipmaps = false;
 
+    this.compositeTarget = new THREE.WebGLRenderTarget(CANVAS_WIDTH, CANVAS_HEIGHT, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      depthBuffer: false,
+      stencilBuffer: false,
+    });
+    this.compositeTarget.texture.generateMipmaps = false;
+
     this.pondBed = new PondBedPass();
-    this.waterSurface = new WaterSurfacePass(this.underwaterTarget.texture);
+    this.waterSurface = new WaterSurfacePass(
+      this.underwaterTarget.texture,
+      this.surfaceDisturbance.texture,
+    );
+    this.weather = new WeatherPass(this.compositeTarget.texture);
     this.bedScene.add(this.pondBed.mesh);
     this.shadowScene.add(
       this.lotusLeaves.shadowGroup,
@@ -223,6 +287,7 @@ export class FishRenderer {
       this.lotusLeaves.group,
       this.butterflies.group,
     );
+    this.weatherScene.add(this.weather.mesh);
 
     const shadowGeometry = new THREE.BufferGeometry();
     const whiteGeometry = new THREE.BufferGeometry();
@@ -232,20 +297,15 @@ export class FishRenderer {
     whiteGeometry.name = "fish silhouettes";
     blackGeometry.name = "fish markings";
     lineGeometry.name = "fish debug lines";
-    this.shadowTriangles = new GeometryBatch(shadowGeometry, TRIANGLE_FLOAT_CAPACITY);
+    this.shadowTriangles = new GeometryBatch(
+      shadowGeometry,
+      TRIANGLE_FLOAT_CAPACITY,
+      true,
+    );
     this.outerTriangles = new GeometryBatch(whiteGeometry, TRIANGLE_FLOAT_CAPACITY, true);
     this.bodyTriangles = new GeometryBatch(blackGeometry, TRIANGLE_FLOAT_CAPACITY, true);
     this.outlineLines = new GeometryBatch(lineGeometry, LINE_FLOAT_CAPACITY, true);
 
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-      color: FISH.shadow.color,
-      opacity: FISH.shadow.opacity,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
     const outerMaterial = new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
@@ -267,7 +327,7 @@ export class FishRenderer {
       toneMapped: false,
     });
 
-    const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
+    const shadowMesh = new THREE.Mesh(shadowGeometry, this.fishShadowMaterial);
     const outerMesh = new THREE.Mesh(whiteGeometry, outerMaterial);
     const bodyMesh = new THREE.Mesh(blackGeometry, bodyMaterial);
     const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
@@ -278,11 +338,50 @@ export class FishRenderer {
     outerMesh.renderOrder = 1;
     bodyMesh.renderOrder = 2;
     lines.renderOrder = 3;
-    this.shadowScene.add(shadowMesh);
+    this.fishShadowScene.add(shadowMesh);
     this.fishScene.add(outerMesh, bodyMesh, lines);
   }
 
+  public refreshConfig(): void {
+    this.targetFishShadowColor.setHex(FISH.shadow.color);
+    this.pondBed.refreshConfig();
+    this.waterSurface.refreshConfig();
+    for (let index = 0; index < this.appearances.length; index += 1) {
+      this.appearances[index] = createFishAppearance(index);
+      this.depthAppearances[index] = createFishAppearance(index);
+    }
+    this.tinyFishRenderer.refreshConfig();
+    this.duckweed.refreshConfig();
+    this.lotusLeaves.refreshConfig();
+    this.butterflies.refreshConfig();
+  }
+
+  public dispose(): void {
+    this.underwaterTarget.dispose();
+    this.compositeTarget.dispose();
+    this.surfaceDisturbance.dispose();
+    this.fishShadowMaterial.dispose();
+    this.weather.dispose();
+    this.renderer.dispose();
+  }
+
+  public setWeatherPreset(id: WeatherPresetId): void {
+    this.weather.setPreset(id);
+  }
+
   public draw(school: School, time: number, showDebug: boolean): void {
+    if (this.previousAppearanceTime >= 0) {
+      const deltaTime = Math.min(
+        0.1,
+        Math.max(0, time - this.previousAppearanceTime),
+      );
+      const blend = 1 - Math.exp(-deltaTime * 2.25);
+      this.fishShadowMaterial.uniforms.uColor.value.lerp(
+        this.targetFishShadowColor,
+        blend,
+      );
+    }
+    this.previousAppearanceTime = time;
     this.shadowTriangles.reset();
     this.outerTriangles.reset();
     this.bodyTriangles.reset();
@@ -291,8 +390,10 @@ export class FishRenderer {
     for (let index = 0; index < school.count; index += 1) {
       const fish = school.fish[index];
       this.buildRenderSpine(fish);
-      this.drawKoi(fish, this.appearances[index]);
-      if (showDebug) this.drawDebug(fish, this.appearances[index]);
+      const appearance = this.depthAppearances[index];
+      this.updateDepthAppearance(fish, this.appearances[index], appearance);
+      this.drawKoi(fish, appearance);
+      if (showDebug) this.drawDebug(fish, appearance);
     }
 
     this.shadowTriangles.commit();
@@ -300,6 +401,8 @@ export class FishRenderer {
     this.bodyTriangles.commit();
     this.outlineLines.commit();
     this.tinyFishRenderer.update(school.tinyFish);
+    this.pondBed.update(time);
+    this.surfaceDisturbance.render(this.renderer, school, time);
     this.waterSurface.update(school, time);
     this.duckweed.update(time);
     this.lotusLeaves.update(time);
@@ -310,15 +413,20 @@ export class FishRenderer {
     this.renderer.autoClear = false;
     this.renderer.render(this.bedScene, this.camera);
     this.renderer.render(this.shadowScene, this.camera);
+    this.renderer.render(this.fishShadowScene, this.camera);
     this.renderer.render(this.fishScene, this.camera);
     this.renderer.autoClear = true;
-    this.renderer.setRenderTarget(null);
+    this.renderer.setRenderTarget(this.compositeTarget);
     this.renderer.clear();
     this.renderer.render(this.surfaceScene, this.surfaceCamera);
     this.renderer.autoClear = false;
     this.renderer.render(this.surfaceShadowScene, this.camera);
     this.renderer.render(this.surfaceObjectScene, this.camera);
     this.renderer.autoClear = true;
+    this.weather.update(time);
+    this.renderer.setRenderTarget(null);
+    this.renderer.clear();
+    this.renderer.render(this.weatherScene, this.surfaceCamera);
   }
 
   private buildRenderSpine(fish: Koi): void {
@@ -352,26 +460,118 @@ export class FishRenderer {
     return Math.max(0.7, fish.bodyWidth * profile);
   }
 
+  private visualDepth(depth: number): number {
+    const range = Math.max(FISH.depth.visualEnd - FISH.depth.visualStart, 0.001);
+    const linear = Math.max(
+      0,
+      Math.min(1, (depth - FISH.depth.visualStart) / range),
+    );
+    return linear * linear * (3 - 2 * linear);
+  }
+
+  private updateDepthAppearance(
+    fish: Koi,
+    source: FishAppearance,
+    target: FishAppearance,
+  ): void {
+    const visualDepth = this.visualDepth(fish.depth);
+    this.applyDepthColor(source.base, target.base, visualDepth);
+    this.applyDepthColor(source.accent, target.accent, visualDepth);
+    this.applyDepthColor(source.marking, target.marking, visualDepth);
+    this.applyDepthColor(source.fin, target.fin, visualDepth);
+    this.applyDepthColor(source.eye, target.eye, visualDepth);
+  }
+
+  private applyDepthColor(
+    source: THREE.Color,
+    target: THREE.Color,
+    visualDepth: number,
+  ): void {
+    const brightness = 1 + (FISH.depth.deepBrightness - 1) * visualDepth;
+    const saturation = 1 + (FISH.depth.deepSaturation - 1) * visualDepth;
+    const luminance = source.r * 0.2126 + source.g * 0.7152 + source.b * 0.0722;
+    const [tintR, tintG, tintB] = FISH.depth.deepWaterTint;
+    target.setRGB(
+      (luminance + (source.r - luminance) * saturation) *
+        brightness *
+        (1 + (tintR - 1) * visualDepth),
+      (luminance + (source.g - luminance) * saturation) *
+        brightness *
+        (1 + (tintG - 1) * visualDepth),
+      (luminance + (source.b - luminance) * saturation) *
+        brightness *
+        (1 + (tintB - 1) * visualDepth),
+    );
+  }
+
+  private addShadowTriangle(a: Vec2, b: Vec2, c: Vec2): void {
+    const shadowOffset = {
+      x:
+        FISH.shadow.offset.x +
+        FISH.depth.shadow.additionalOffset.x * this.currentVisualDepth,
+      y:
+        FISH.shadow.offset.y +
+        FISH.depth.shadow.additionalOffset.y * this.currentVisualDepth,
+    };
+    const opacity =
+      FISH.shadow.surfaceOpacity +
+      (FISH.shadow.deepOpacity - FISH.shadow.surfaceOpacity) *
+        this.currentVisualDepth;
+    this.shadowStrengthColor.setRGB(
+      opacity,
+      opacity,
+      opacity,
+    );
+    this.shadowTriangles.triangle(
+      add(a, shadowOffset),
+      add(b, shadowOffset),
+      add(c, shadowOffset),
+      this.shadowStrengthColor,
+    );
+  }
+
+  private addShadowCircle(center: Vec2, radius: number): void {
+    const shadowOffset = {
+      x:
+        FISH.shadow.offset.x +
+        FISH.depth.shadow.additionalOffset.x * this.currentVisualDepth,
+      y:
+        FISH.shadow.offset.y +
+        FISH.depth.shadow.additionalOffset.y * this.currentVisualDepth,
+    };
+    const opacity =
+      FISH.shadow.surfaceOpacity +
+      (FISH.shadow.deepOpacity - FISH.shadow.surfaceOpacity) *
+        this.currentVisualDepth;
+    this.shadowStrengthColor.setRGB(
+      opacity,
+      opacity,
+      opacity,
+    );
+    this.shadowTriangles.circle(
+      add(center, shadowOffset),
+      radius,
+      this.shadowStrengthColor,
+    );
+  }
+
   private silhouetteTriangle(
     a: Vec2,
     b: Vec2,
     c: Vec2,
     color: THREE.Color,
   ): void {
-    this.shadowTriangles.triangle(
-      add(a, FISH.shadow.offset),
-      add(b, FISH.shadow.offset),
-      add(c, FISH.shadow.offset),
-    );
+    this.addShadowTriangle(a, b, c);
     this.outerTriangles.triangle(a, b, c, color);
   }
 
   private silhouetteCircle(center: Vec2, radius: number, color: THREE.Color): void {
-    this.shadowTriangles.circle(add(center, FISH.shadow.offset), radius);
+    this.addShadowCircle(center, radius);
     this.outerTriangles.circle(center, radius, color);
   }
 
   private drawKoi(fish: Koi, appearance: FishAppearance): void {
+    this.currentVisualDepth = this.visualDepth(fish.depth);
     const left: Vec2[] = [];
     const right: Vec2[] = [];
 
@@ -396,8 +596,12 @@ export class FishRenderer {
       fromAngle(fish.heading),
     );
     const pectoralNormal = perpendicular(pectoralTangent);
+    const gulpProgress =
+      fish.gulpAnimation / Math.max(FISH.feeding.animationDurationSeconds, 0.001);
+    const gulpPaddle = Math.sin(Math.PI * gulpProgress) * 0.85;
     const paddleActivity =
-      fish.state === SwimState.Hover ? 1 : fish.state === SwimState.Pivot ? 0.85 : 0.45;
+      (fish.state === SwimState.Hover ? 1 : fish.state === SwimState.Pivot ? 0.85 : 0.45)
+      + gulpPaddle;
     const finPulse =
       0.82 +
       paddleActivity * 0.25 * Math.sin(fish.swimPhase * 0.64 + fish.phaseOffset);

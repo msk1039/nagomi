@@ -42,21 +42,30 @@ export class DuckweedPass {
   private readonly shadowGeometry = new THREE.BufferGeometry();
   private readonly leafGeometry = new THREE.BufferGeometry();
   private readonly detailGeometry = new THREE.BufferGeometry();
+  private readonly shadowMaterial = new THREE.MeshBasicMaterial({
+    color: DUCKWEED.shadow.color,
+    opacity: DUCKWEED.shadow.opacity,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
   private readonly shadowBatch = new SurfaceGeometryBatch(
     this.shadowGeometry,
-    48_000,
+    120_000,
   );
   private readonly leafBatch = new SurfaceGeometryBatch(
     this.leafGeometry,
-    48_000,
+    120_000,
     true,
   );
   private readonly detailBatch = new SurfaceGeometryBatch(
     this.detailGeometry,
-    12_000,
+    32_000,
     true,
   );
-  private readonly leaves: readonly DuckweedLeaf[];
+  private leaves: readonly DuckweedLeaf[];
 
   public constructor() {
     this.leaves = this.createLeaves();
@@ -64,15 +73,6 @@ export class DuckweedPass {
     this.leafGeometry.name = "duckweed leaves";
     this.detailGeometry.name = "duckweed highlights";
 
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-      color: DUCKWEED.shadow.color,
-      opacity: DUCKWEED.shadow.opacity,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
     const leafMaterial = new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
@@ -81,7 +81,7 @@ export class DuckweedPass {
       toneMapped: false,
     });
 
-    const shadowMesh = new THREE.Mesh(this.shadowGeometry, shadowMaterial);
+    const shadowMesh = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial);
     const leafMesh = new THREE.Mesh(this.leafGeometry, leafMaterial);
     const detailMesh = new THREE.Mesh(this.detailGeometry, leafMaterial);
     shadowMesh.frustumCulled = false;
@@ -92,6 +92,21 @@ export class DuckweedPass {
     detailMesh.renderOrder = 1;
     this.shadowGroup.add(shadowMesh);
     this.group.add(leafMesh, detailMesh);
+    this.refreshConfig();
+  }
+
+  public refreshConfig(): void {
+    this.shadowMaterial.color.setHex(DUCKWEED.shadow.color);
+    this.shadowMaterial.opacity = DUCKWEED.shadow.opacity;
+    for (const [index, palette] of DUCKWEED.palettes.entries()) {
+      const target = PALETTES[index];
+      if (!target) continue;
+      target.base.setHex(palette.base);
+      target.light.setHex(palette.light);
+      target.shade.setHex(palette.shade);
+      target.center.setHex(palette.center);
+    }
+    this.leaves = this.createLeaves();
   }
 
   public update(time: number): void {

@@ -86,8 +86,55 @@ export const FISH = {
   eyeColor: 0x171815,
   shadow: {
     color: 0x0b211e,
-    opacity: 0.46,
+    surfaceOpacity: 0.38,
+    deepOpacity: 0.56,
     offset: { x: 4.4, y: 10.4 },
+  },
+  depth: {
+    initialRange: [0.05, 0.18] as const,
+    shallowRange: [0.04, 0.22] as const,
+    deepRange: [0.45, 0.75] as const,
+    surfaceDurationSeconds: [8, 22] as const,
+    deepDurationSeconds: [4, 10] as const,
+    changeProbability: 0.72,
+    transitionSeconds: [2, 5] as const,
+    callRiseDepth: 0.035,
+    callRiseSeconds: 2.4,
+    visualStart: 0.10,
+    visualEnd: 0.72,
+    deepBrightness: 0.59,
+    deepSaturation: 0.76,
+    deepWaterTint: [0.66, 0.84, 0.80] as Rgb,
+    shadow: {
+      offset: { x: 4.4, y: 10.4 },
+      additionalOffset: { x: -3, y: -7 },
+    },
+    localDistortion: {
+      strength: 2.3,
+      lengthScale: 0.72,
+      widthScale: 1.85,
+      waveFrequency: 8.5,
+      waveSpeed: 2.4,
+    },
+  },
+  tailWake: {
+    minimumSpeed: 8.5,
+    depthCutoff: 0.46,
+    depthFalloffExponent: 2.2,
+    lifetimeSeconds: 0.96,
+    length: [15, 27] as const,
+    bandWidth: 1.15,
+    openingAngleDegrees: 29,
+    strength: 0.78,
+    oscillation: 0.18,
+  },
+  feeding: {
+    intervalSeconds: [1, 4] as const,
+    retryDelaySeconds: [0.55, 1.35] as const,
+    eligibleDepth: 0.23,
+    eligibleSpeedFraction: 0.62,
+    mouthForwardOffset: 0.66,
+    animationDurationSeconds: 0.24,
   },
   callResponse: {
     // Farther fish receive a larger part of maximumDistanceDelaySeconds.
@@ -301,30 +348,84 @@ export const POND_BED = {
   deepColor: [0.486, 0.718, 0.631] as Rgb,
   shallowColor: [0.145, 0.395, 0.255] as Rgb,
   speckColor: [0.020, 0.065, 0.040] as Rgb,
-  verticalTone: 0.20,
+  verticalTone: 0.80,
   grainScale: 0.54,
   edgeDarkening: 0.57,
 } as const;
 
+export const RIPPLES = {
+  maximumInstances: 64,
+  types: {
+    touch: {
+      maximumActive: 16,
+      ripplesPerEvent: 5,
+      intervalSeconds: 0.023,
+      initialStrength: 1,
+      strengthFalloff: 0.92,
+      lifetime: 2.2,
+      startRadius: 4,
+      expansionSpeed: 62,
+      distortion: 5.55,
+      bandSharpness: 0.30,
+      fadeStart: 0.58,
+      strengthDecay: 0.18,
+    },
+    rain: {
+      maximumActive: 48,
+      ripplesPerEvent: 3,
+      intervalSeconds: 0.103,
+      initialStrength: 1.55,
+      strengthFalloff: 1,
+      lifetime: 1.25,
+      startRadius: 0.8,
+      expansionSpeed: 30,
+      distortion: 4.8,
+      bandSharpness: 0.62,
+      fadeStart: 0.34,
+      strengthDecay: 0.18,
+    },
+    mouth: {
+      maximumActive: 10,
+      ripplesPerEvent: 1,
+      intervalSeconds: 0.08,
+      initialStrength: 0.50,
+      strengthFalloff: 0.65,
+      lifetime: 0.90,
+      startRadius: 1.2,
+      expansionSpeed: 17,
+      distortion: 10.4,
+      bandSharpness: 0.70,
+      fadeStart: 0.25,
+      strengthDecay: 0.45,
+    },
+  },
+  rainEmitter: {
+    dropsPerSecond: 12,
+    frequencyVariation: 0.35,
+    maximumDropsPerFrame: 40,
+    edgeMargin: 5,
+  },
+} as const;
+
 export const WATER = {
   showCurrentEffect: true,
-  maximumRipples: 16,
-  ripplesPerCall: 5,
-  rippleIntervalSeconds: 0.023,
-  rippleStrengthFalloff: 0.92,
-  rippleLifetime: 2.2,
   colorTint: [0.96, 1.02, 1.0] as Rgb,
   largeCurrentColor: [0.022, 0.068, 0.047] as Rgb,
   largeCurrentCoreColor: [0.052, 0.155, 0.108] as Rgb,
+  secondaryLargeCurrentColor: [0.022, 0.068, 0.047] as Rgb,
+  secondaryLargeCurrentCoreColor: [0.052, 0.155, 0.108] as Rgb,
   detailCurrentColor: [0.010, 0.034, 0.023] as Rgb,
   detailCurrentCoreColor: [0.028, 0.090, 0.061] as Rgb,
   // Use 0 to hide one layer without changing its colors.
   largeCellSize: 908,
   largeCurrentOpacity: 0.99,
-  secondaryLargeCellSize:10,
+  largeCurrentSpeed: 1,
+  secondaryLargeCellSize: 10,
   secondaryLargeCurrentOpacity: 0.15,
+  secondaryLargeCurrentSpeed: 1,
   detailCellSize: 20,
   detailCurrentOpacity: 0.9,
+  detailCurrentSpeed: 1,
   currentDistortion: {
     amplitude: 0.015,
     waves: [
@@ -333,18 +434,15 @@ export const WATER = {
       { direction: [0.71, 0.71], frequency: 59, speed: -6.38, strength: 0.28 },
     ],
   },
-  rippleStartRadius: 4,
-  rippleExpansionSpeed: 62,
-  rippleDistortion: 5.55,
 } as const;
 
 export const LOTUS = {
   visibleLeafCount: 15,
   visibleFlowerCount: 4,
   radiusScale: 1.18,
-  flowerRadiusScale: 1.38,
-  leafSegments: 18,
-  veinCount: 7,
+  flowerRadiusScale: 2.38,
+  leafSegments: 24,
+  veinCount: 5,
   notchHalfAngle: 0.30,
   verticalScale: 0.92,
   driftX: 0.7,
@@ -357,18 +455,18 @@ export const LOTUS = {
   },
   leafPalettes: [
     {
-      base: 0x61ba63,
-      light: 0x91d87a,
-      shade: 0x408951,
-      vein: 0x296b46,
-      center: 0xb1e184,
+      base: 0x5f9d78,
+      light: 0x76aa84,
+      shade: 0x487c66,
+      vein: 0x3f705e,
+      center: 0x4f866b,
     },
     {
-      base: 0x70c66b,
-      light: 0xa0e488,
-      shade: 0x4b9558,
-      vein: 0x30734a,
-      center: 0xbce990,
+      base: 0x568f6f,
+      light: 0x6ca17b,
+      shade: 0x416f5b,
+      vein: 0x386653,
+      center: 0x497d63,
     },
   ],
   flowerPalettes: [
@@ -403,7 +501,7 @@ export const LOTUS_LEAVES: readonly LotusLeafSetting[] = [
   { x: 140, y: 10, radius: 21, angle: 0.70, phase: 5.9, palette: 1 },
   { x: 330, y: 7, radius: 14, angle: 3.85, phase: 1.8, palette: 0 },
   { x: 447, y: 57, radius: 20, angle: 5.65, phase: 3.8, palette: 1 },
-  { x: 82, y: 76, radius: 12, angle: 1.25, phase: 4.9, palette: 0 },
+  { x: 82, y: 76, radius: 32, angle: 1.25, phase: 4.9, palette: 0 },
   { x: 414, y: 194, radius: 23, angle: 4.85, phase: 2.5, palette: 1 },
   { x: 444, y: 224, radius: 20, angle: 2.85, phase: 2.5, palette: 1 },
   { x: 10, y: 165, radius: 14, angle: 2.55, phase: 2.5, palette: 0 },
@@ -552,7 +650,10 @@ export const CANVAS_HEIGHT = CANVAS.height;
 export const MAX_FISH = FISH.maximumCount;
 export const INITIAL_FISH = FISH.initialCount;
 export const SPINE_NODES = SIMULATION.spineNodes;
-export const MAX_RIPPLES = WATER.maximumRipples;
-export const RIPPLE_LIFETIME = WATER.rippleLifetime;
+export const MAX_RIPPLES = RIPPLES.maximumInstances;
+export const MAX_RIPPLE_TYPES = Object.keys(RIPPLES.types).length;
+// Fixed GPU capacities are intentionally kept out of the runtime settings UI.
+export const MAX_WAKES = 32;
+export const RIPPLE_LIFETIME = RIPPLES.types.touch.lifetime;
 export const FIXED_STEP = 1 / SIMULATION.updatesPerSecond;
 export const TAU = Math.PI * 2;
