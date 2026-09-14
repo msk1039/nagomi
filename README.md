@@ -1,4 +1,4 @@
-# Procedural Koi — Three.js
+# nagomi
 
 A WebGL procedural koi simulation. Three.js draws colorful generated koi patterns, dynamic fish geometry, subtle shadows, a procedural pond bed, and refractive click ripples at a fixed 480 × 270 resolution.
 
