@@ -9,13 +9,6 @@ import {
 } from "./config";
 import { RIPPLE_TYPE_ORDER } from "./ripple-system";
 import { School } from "./school";
-import {
-  DEFAULT_WEATHER_PRESET_ID,
-  getWeatherPreset,
-  type CurrentLayerTheme,
-  type CurrentWeatherTheme,
-  type WeatherPresetId,
-} from "./weather";
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -338,29 +331,51 @@ const fragmentShader = /* glsl */ `
 const currentLayerNames = ["large", "secondaryLarge", "detail"] as const;
 type CurrentLayerName = (typeof currentLayerNames)[number];
 
-interface RuntimeCurrentLayer {
+interface RuntimeWaterAppearance {
   colorTint: THREE.Color;
-  coreColorTint: THREE.Color;
-  opacityMultiplier: number;
-  speedMultiplier: number;
+  largeCurrentColor: THREE.Color;
+  largeCurrentCoreColor: THREE.Color;
+  largeCellSize: number;
+  largeCurrentOpacity: number;
+  largeCurrentSpeed: number;
+  secondaryLargeCurrentColor: THREE.Color;
+  secondaryLargeCurrentCoreColor: THREE.Color;
+  secondaryLargeCellSize: number;
+  secondaryLargeCurrentOpacity: number;
+  secondaryLargeCurrentSpeed: number;
+  detailCurrentColor: THREE.Color;
+  detailCurrentCoreColor: THREE.Color;
+  detailCellSize: number;
+  detailCurrentOpacity: number;
+  detailCurrentSpeed: number;
 }
 
-type RuntimeCurrentTheme = Record<CurrentLayerName, RuntimeCurrentLayer>;
-
-function runtimeCurrentLayer(theme: CurrentLayerTheme): RuntimeCurrentLayer {
+function waterAppearanceFromConfig(): RuntimeWaterAppearance {
   return {
-    colorTint: new THREE.Color().setRGB(...theme.colorTint),
-    coreColorTint: new THREE.Color().setRGB(...theme.coreColorTint),
-    opacityMultiplier: theme.opacityMultiplier,
-    speedMultiplier: theme.speedMultiplier,
-  };
-}
-
-function runtimeCurrentTheme(theme: CurrentWeatherTheme): RuntimeCurrentTheme {
-  return {
-    large: runtimeCurrentLayer(theme.large),
-    secondaryLarge: runtimeCurrentLayer(theme.secondaryLarge),
-    detail: runtimeCurrentLayer(theme.detail),
+    colorTint: new THREE.Color().setRGB(...WATER.colorTint),
+    largeCurrentColor: new THREE.Color().setRGB(...WATER.largeCurrentColor),
+    largeCurrentCoreColor: new THREE.Color().setRGB(
+      ...WATER.largeCurrentCoreColor,
+    ),
+    largeCellSize: WATER.largeCellSize,
+    largeCurrentOpacity: WATER.largeCurrentOpacity,
+    largeCurrentSpeed: WATER.largeCurrentSpeed,
+    secondaryLargeCurrentColor: new THREE.Color().setRGB(
+      ...WATER.secondaryLargeCurrentColor,
+    ),
+    secondaryLargeCurrentCoreColor: new THREE.Color().setRGB(
+      ...WATER.secondaryLargeCurrentCoreColor,
+    ),
+    secondaryLargeCellSize: WATER.secondaryLargeCellSize,
+    secondaryLargeCurrentOpacity: WATER.secondaryLargeCurrentOpacity,
+    secondaryLargeCurrentSpeed: WATER.secondaryLargeCurrentSpeed,
+    detailCurrentColor: new THREE.Color().setRGB(...WATER.detailCurrentColor),
+    detailCurrentCoreColor: new THREE.Color().setRGB(
+      ...WATER.detailCurrentCoreColor,
+    ),
+    detailCellSize: WATER.detailCellSize,
+    detailCurrentOpacity: WATER.detailCurrentOpacity,
+    detailCurrentSpeed: WATER.detailCurrentSpeed,
   };
 }
 
@@ -380,12 +395,8 @@ export class WaterSurfacePass {
     { length: MAX_RIPPLE_TYPES },
     () => new THREE.Vector4(1, 0, 0, 0),
   );
-  private readonly currentTheme = runtimeCurrentTheme(
-    getWeatherPreset(DEFAULT_WEATHER_PRESET_ID).currents,
-  );
-  private targetCurrentTheme = runtimeCurrentTheme(
-    getWeatherPreset(DEFAULT_WEATHER_PRESET_ID).currents,
-  );
+  private readonly currentAppearance = waterAppearanceFromConfig();
+  private targetAppearance = waterAppearanceFromConfig();
   private readonly currentTimes: Record<CurrentLayerName, number> = {
     large: 0,
     secondaryLarge: 0,
@@ -442,14 +453,12 @@ export class WaterSurfacePass {
     this.mesh.frustumCulled = false;
   }
 
-  public setWeatherPreset(id: WeatherPresetId): void {
-    this.targetCurrentTheme = runtimeCurrentTheme(
-      getWeatherPreset(id).currents,
-    );
+  public refreshConfig(): void {
+    this.targetAppearance = waterAppearanceFromConfig();
   }
 
   public update(school: School, time: number): void {
-    this.updateCurrentTheme(time);
+    this.updateCurrentAppearance(time);
     for (let index = 0; index < MAX_RIPPLE_TYPES; index += 1) {
       this.ripplePhysics[index].set(1, 0, 0, 0);
       this.rippleCurves[index].set(1, 0, 0, 0);
@@ -497,37 +506,40 @@ export class WaterSurfacePass {
     }
     this.material.uniforms.uTime.value = time;
     this.material.uniforms.uRippleCount.value = activeCount;
-    this.material.uniforms.uColorTint.value.setRGB(...WATER.colorTint);
+    this.material.uniforms.uColorTint.value.copy(
+      this.currentAppearance.colorTint,
+    );
     this.material.uniforms.uShowCurrentEffect.value = WATER.showCurrentEffect ? 1 : 0;
-    this.material.uniforms.uLargeCellSize.value = WATER.largeCellSize;
+    this.material.uniforms.uLargeCellSize.value =
+      this.currentAppearance.largeCellSize;
     this.material.uniforms.uLargeCurrentOpacity.value =
-      WATER.largeCurrentOpacity * this.currentTheme.large.opacityMultiplier;
+      this.currentAppearance.largeCurrentOpacity;
     this.material.uniforms.uSecondaryLargeCellSize.value =
-      WATER.secondaryLargeCellSize;
+      this.currentAppearance.secondaryLargeCellSize;
     this.material.uniforms.uSecondaryLargeCurrentOpacity.value =
-      WATER.secondaryLargeCurrentOpacity
-      * this.currentTheme.secondaryLarge.opacityMultiplier;
-    this.material.uniforms.uDetailCellSize.value = WATER.detailCellSize;
+      this.currentAppearance.secondaryLargeCurrentOpacity;
+    this.material.uniforms.uDetailCellSize.value =
+      this.currentAppearance.detailCellSize;
     this.material.uniforms.uDetailCurrentOpacity.value =
-      WATER.detailCurrentOpacity * this.currentTheme.detail.opacityMultiplier;
-    this.material.uniforms.uLargeCurrentColor.value.setRGB(
-      ...WATER.largeCurrentColor,
-    ).multiply(this.currentTheme.large.colorTint);
-    this.material.uniforms.uLargeCurrentCoreColor.value.setRGB(
-      ...WATER.largeCurrentCoreColor,
-    ).multiply(this.currentTheme.large.coreColorTint);
-    this.material.uniforms.uSecondaryLargeCurrentColor.value.setRGB(
-      ...WATER.largeCurrentColor,
-    ).multiply(this.currentTheme.secondaryLarge.colorTint);
-    this.material.uniforms.uSecondaryLargeCurrentCoreColor.value.setRGB(
-      ...WATER.largeCurrentCoreColor,
-    ).multiply(this.currentTheme.secondaryLarge.coreColorTint);
-    this.material.uniforms.uDetailCurrentColor.value.setRGB(
-      ...WATER.detailCurrentColor,
-    ).multiply(this.currentTheme.detail.colorTint);
-    this.material.uniforms.uDetailCurrentCoreColor.value.setRGB(
-      ...WATER.detailCurrentCoreColor,
-    ).multiply(this.currentTheme.detail.coreColorTint);
+      this.currentAppearance.detailCurrentOpacity;
+    this.material.uniforms.uLargeCurrentColor.value.copy(
+      this.currentAppearance.largeCurrentColor,
+    );
+    this.material.uniforms.uLargeCurrentCoreColor.value.copy(
+      this.currentAppearance.largeCurrentCoreColor,
+    );
+    this.material.uniforms.uSecondaryLargeCurrentColor.value.copy(
+      this.currentAppearance.secondaryLargeCurrentColor,
+    );
+    this.material.uniforms.uSecondaryLargeCurrentCoreColor.value.copy(
+      this.currentAppearance.secondaryLargeCurrentCoreColor,
+    );
+    this.material.uniforms.uDetailCurrentColor.value.copy(
+      this.currentAppearance.detailCurrentColor,
+    );
+    this.material.uniforms.uDetailCurrentCoreColor.value.copy(
+      this.currentAppearance.detailCurrentCoreColor,
+    );
     const [waveA, waveB, waveC] = WATER.currentDistortion.waves;
     this.material.uniforms.uCurrentAmplitude.value =
       WATER.currentDistortion.amplitude;
@@ -555,7 +567,7 @@ export class WaterSurfacePass {
     this.material.uniforms.uDetailCurrentTime.value = this.currentTimes.detail;
   }
 
-  private updateCurrentTheme(time: number): void {
+  private updateCurrentAppearance(time: number): void {
     if (this.previousTime < 0) {
       for (const name of currentLayerNames) this.currentTimes[name] = time;
       this.previousTime = time;
@@ -565,16 +577,45 @@ export class WaterSurfacePass {
     const deltaTime = Math.min(0.1, Math.max(0, time - this.previousTime));
     this.previousTime = time;
     const blend = 1 - Math.exp(-deltaTime * 2.25);
-    for (const name of currentLayerNames) {
-      const current = this.currentTheme[name];
-      const target = this.targetCurrentTheme[name];
-      current.colorTint.lerp(target.colorTint, blend);
-      current.coreColorTint.lerp(target.coreColorTint, blend);
-      current.opacityMultiplier +=
-        (target.opacityMultiplier - current.opacityMultiplier) * blend;
-      current.speedMultiplier +=
-        (target.speedMultiplier - current.speedMultiplier) * blend;
-      this.currentTimes[name] += deltaTime * current.speedMultiplier;
-    }
+    const current = this.currentAppearance;
+    const target = this.targetAppearance;
+    current.colorTint.lerp(target.colorTint, blend);
+    current.largeCurrentColor.lerp(target.largeCurrentColor, blend);
+    current.largeCurrentCoreColor.lerp(target.largeCurrentCoreColor, blend);
+    current.secondaryLargeCurrentColor.lerp(
+      target.secondaryLargeCurrentColor,
+      blend,
+    );
+    current.secondaryLargeCurrentCoreColor.lerp(
+      target.secondaryLargeCurrentCoreColor,
+      blend,
+    );
+    current.detailCurrentColor.lerp(target.detailCurrentColor, blend);
+    current.detailCurrentCoreColor.lerp(target.detailCurrentCoreColor, blend);
+    current.largeCellSize +=
+      (target.largeCellSize - current.largeCellSize) * blend;
+    current.largeCurrentOpacity +=
+      (target.largeCurrentOpacity - current.largeCurrentOpacity) * blend;
+    current.largeCurrentSpeed +=
+      (target.largeCurrentSpeed - current.largeCurrentSpeed) * blend;
+    current.secondaryLargeCellSize +=
+      (target.secondaryLargeCellSize - current.secondaryLargeCellSize) * blend;
+    current.secondaryLargeCurrentOpacity +=
+      (target.secondaryLargeCurrentOpacity -
+        current.secondaryLargeCurrentOpacity) * blend;
+    current.secondaryLargeCurrentSpeed +=
+      (target.secondaryLargeCurrentSpeed - current.secondaryLargeCurrentSpeed) *
+      blend;
+    current.detailCellSize +=
+      (target.detailCellSize - current.detailCellSize) * blend;
+    current.detailCurrentOpacity +=
+      (target.detailCurrentOpacity - current.detailCurrentOpacity) * blend;
+    current.detailCurrentSpeed +=
+      (target.detailCurrentSpeed - current.detailCurrentSpeed) * blend;
+
+    this.currentTimes.large += deltaTime * current.largeCurrentSpeed;
+    this.currentTimes.secondaryLarge +=
+      deltaTime * current.secondaryLargeCurrentSpeed;
+    this.currentTimes.detail += deltaTime * current.detailCurrentSpeed;
   }
 }

@@ -1,6 +1,7 @@
 import {
   BUTTERFLIES,
   BUTTERFLY_SPAWNS,
+  CANVAS,
   DUCKWEED,
   DUCKWEED_PATCHES,
   FISH,
@@ -14,7 +15,13 @@ import {
   TINY_FISH,
   TINY_FISH_SCHOOLS,
   WATER,
+  type ButterflySpawnSetting,
+  type DuckweedPatchSetting,
+  type LotusFlowerSetting,
+  type LotusLeafSetting,
+  type TinyFishSchoolSetting,
 } from "./config";
+import type { WeatherConfigValues } from "./weather";
 
 export type ConfigPath = readonly (string | number)[];
 export type RuntimeConfigDraft = Record<string, unknown>;
@@ -131,8 +138,165 @@ const DEFAULTS = new Map(
 
 type MutableRecord = Record<string | number, unknown>;
 
+interface CollectionGrowthRule {
+  sectionId: string;
+  countKey: string;
+  collectionSectionId: string;
+  createItem: (draft: RuntimeConfigDraft) => unknown;
+}
+
 function asMutable(value: unknown): MutableRecord {
   return value as MutableRecord;
+}
+
+function randomBetween(minimum: number, maximum: number): number {
+  return minimum + Math.random() * (maximum - minimum);
+}
+
+function randomInteger(minimum: number, maximumExclusive: number): number {
+  return Math.floor(randomBetween(minimum, maximumExclusive));
+}
+
+function roundedRandom(minimum: number, maximum: number): number {
+  return Number(randomBetween(minimum, maximum).toFixed(2));
+}
+
+function randomEdgePosition(): { x: number; y: number } {
+  const side = randomInteger(0, 4);
+  if (side === 0) {
+    return { x: randomInteger(16, CANVAS.width - 15), y: randomInteger(8, 43) };
+  }
+  if (side === 1) {
+    return {
+      x: randomInteger(CANVAS.width - 42, CANVAS.width - 7),
+      y: randomInteger(16, CANVAS.height - 15),
+    };
+  }
+  if (side === 2) {
+    return {
+      x: randomInteger(16, CANVAS.width - 15),
+      y: randomInteger(CANVAS.height - 42, CANVAS.height - 7),
+    };
+  }
+  return { x: randomInteger(8, 43), y: randomInteger(16, CANVAS.height - 15) };
+}
+
+function createTinyFishSchool(): TinyFishSchoolSetting {
+  return {
+    x: randomInteger(48, CANVAS.width - 47),
+    y: randomInteger(38, CANVAS.height - 37),
+    count: randomInteger(10, 19),
+    heading: roundedRandom(-Math.PI, Math.PI),
+    spreadX: randomInteger(18, 41),
+    spreadY: randomInteger(9, 21),
+    palette: randomInteger(0, TINY_FISH.palettes.length),
+    sizeScale: roundedRandom(0.8, 1.14),
+    speedScale: roundedRandom(0.88, 1.14),
+    swirlDirection: Math.random() < 0.5 ? -1 : 1,
+  };
+}
+
+function createLotusLeaf(): LotusLeafSetting {
+  const position = randomEdgePosition();
+  return {
+    ...position,
+    radius: randomInteger(12, 27),
+    angle: roundedRandom(0, Math.PI * 2),
+    phase: roundedRandom(0, Math.PI * 2),
+    palette: randomInteger(0, LOTUS.leafPalettes.length),
+  };
+}
+
+function createLotusFlower(draft: RuntimeConfigDraft): LotusFlowerSetting {
+  const lotus = draft.lotus as { visibleLeafCount?: number } | undefined;
+  const leaves = draft["lotus-leaves"];
+  const availableLeaves = Array.isArray(leaves) ? leaves.length : LOTUS_LEAVES.length;
+  const visibleLeaves = Math.max(
+    1,
+    Math.min(availableLeaves, Math.round(lotus?.visibleLeafCount ?? LOTUS.visibleLeafCount)),
+  );
+  return {
+    leafIndex: randomInteger(0, visibleLeaves),
+    radius: roundedRandom(4.2, 6.2),
+    offsetX: roundedRandom(-2.2, 2.2),
+    offsetY: roundedRandom(-2.2, 2.2),
+    rotation: roundedRandom(0, Math.PI * 2),
+    palette: randomInteger(0, LOTUS.flowerPalettes.length),
+  };
+}
+
+function createDuckweedPatch(): DuckweedPatchSetting {
+  const position = randomEdgePosition();
+  return {
+    ...position,
+    radius: randomInteger(18, 43),
+    count: randomInteger(18, 33),
+    phase: roundedRandom(0, Math.PI * 2),
+    palette: randomInteger(0, DUCKWEED.palettes.length),
+  };
+}
+
+function createButterflySpawn(): ButterflySpawnSetting {
+  return {
+    x: randomInteger(24, CANVAS.width - 23),
+    y: randomInteger(24, CANVAS.height - 23),
+    phase: roundedRandom(0, Math.PI * 2),
+    palette: randomInteger(0, BUTTERFLIES.palettes.length),
+  };
+}
+
+const COLLECTION_GROWTH_RULES: readonly CollectionGrowthRule[] = [
+  {
+    sectionId: "tiny-fish",
+    countKey: "visibleSchoolCount",
+    collectionSectionId: "tiny-fish-schools",
+    createItem: createTinyFishSchool,
+  },
+  {
+    sectionId: "lotus",
+    countKey: "visibleLeafCount",
+    collectionSectionId: "lotus-leaves",
+    createItem: createLotusLeaf,
+  },
+  {
+    sectionId: "lotus",
+    countKey: "visibleFlowerCount",
+    collectionSectionId: "lotus-flowers",
+    createItem: createLotusFlower,
+  },
+  {
+    sectionId: "duckweed",
+    countKey: "visiblePatchCount",
+    collectionSectionId: "duckweed-patches",
+    createItem: createDuckweedPatch,
+  },
+  {
+    sectionId: "butterflies",
+    countKey: "visibleCount",
+    collectionSectionId: "butterfly-spawns",
+    createItem: createButterflySpawn,
+  },
+];
+
+function growRelatedCollection(
+  draft: RuntimeConfigDraft,
+  sectionId: string,
+  path: ConfigPath,
+  value: boolean | number | string,
+): void {
+  if (typeof value !== "number" || path.length !== 1) return;
+  const rule = COLLECTION_GROWTH_RULES.find(
+    (candidate) => candidate.sectionId === sectionId && candidate.countKey === path[0],
+  );
+  if (!rule) return;
+  const source = draft[rule.collectionSectionId];
+  if (!Array.isArray(source)) return;
+  const collection = structuredClone(source);
+  const requestedCount = Math.max(0, Math.round(value));
+  while (collection.length < requestedCount) {
+    collection.push(rule.createItem(draft));
+  }
+  draft[rule.collectionSectionId] = collection;
 }
 
 function copyInto(target: unknown, source: unknown): void {
@@ -189,6 +353,31 @@ export function createRuntimeConfigDraft(): RuntimeConfigDraft {
   );
 }
 
+export function applyWeatherConfig(values: WeatherConfigValues): void {
+  copyInto(FISH, values.fish);
+  copyInto(POND_BED, values.pondBed);
+  copyInto(WATER, values.water);
+}
+
+export function applyWeatherConfigToDraft(
+  draft: RuntimeConfigDraft,
+  values: WeatherConfigValues,
+): RuntimeConfigDraft {
+  const next = { ...draft };
+  const overwriteSection = (sectionId: string, overrides: unknown): void => {
+    const current = draft[sectionId];
+    if (current === undefined) return;
+    const updated = structuredClone(current);
+    copyInto(updated, overrides);
+    next[sectionId] = updated;
+  };
+
+  overwriteSection("koi", values.fish);
+  overwriteSection("pond-bed", values.pondBed);
+  overwriteSection("water", values.water);
+  return next;
+}
+
 export function createDefaultRuntimeConfigDraft(): RuntimeConfigDraft {
   return Object.fromEntries(
     RUNTIME_CONFIG_SECTIONS.map((section) => [
@@ -205,7 +394,7 @@ export function updateRuntimeConfigDraft(
   value: boolean | number | string,
 ): RuntimeConfigDraft {
   if (!(sectionId in draft) || path.length === 0) return draft;
-  const next = {
+  const next: RuntimeConfigDraft = {
     ...draft,
     [sectionId]: structuredClone(draft[sectionId]),
   };
@@ -214,6 +403,7 @@ export function updateRuntimeConfigDraft(
     target = asMutable(target)[segment];
   }
   asMutable(target)[path[path.length - 1]] = value;
+  growRelatedCollection(next, sectionId, path, value);
   return next;
 }
 

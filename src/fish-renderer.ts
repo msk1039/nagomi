@@ -7,7 +7,6 @@ import {
   SPINE_NODES,
 } from "./config";
 import { ButterflyPass } from "./butterflies";
-import { DeepShadowPass } from "./deep-shadow-pass";
 import { DuckweedPass } from "./duckweed";
 import {
   createFishAppearance,
@@ -194,7 +193,7 @@ export class FishRenderer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly bedScene = new THREE.Scene();
   private readonly shadowScene = new THREE.Scene();
-  private readonly shallowFishShadowScene = new THREE.Scene();
+  private readonly fishShadowScene = new THREE.Scene();
   private readonly fishScene = new THREE.Scene();
   private readonly surfaceScene = new THREE.Scene();
   private readonly surfaceShadowScene = new THREE.Scene();
@@ -215,17 +214,12 @@ export class FishRenderer {
   private readonly surfaceDisturbance = new SurfaceDisturbancePass();
   private readonly waterSurface: WaterSurfacePass;
   private readonly weather: WeatherPass;
-  private readonly deepShadowPass: DeepShadowPass;
   private readonly tinyFishRenderer = new TinyFishRenderer();
   private readonly duckweed = new DuckweedPass();
   private readonly lotusLeaves = new LotusLeavesPass();
   private readonly butterflies = new ButterflyPass();
-  private readonly shallowShadowMaterial = shadowMaterial(FISH.shadow.opacity);
-  private readonly deepShadowMaterial = shadowMaterial(
-    FISH.shadow.opacity * FISH.depth.shadow.deepOpacityMultiplier,
-  );
-  private readonly shallowShadowTriangles: GeometryBatch;
-  private readonly deepShadowTriangles: GeometryBatch;
+  private readonly fishShadowMaterial = shadowMaterial(1);
+  private readonly shadowTriangles: GeometryBatch;
   private readonly outerTriangles: GeometryBatch;
   private readonly bodyTriangles: GeometryBatch;
   private readonly outlineLines: GeometryBatch;
@@ -238,6 +232,8 @@ export class FishRenderer {
     (_, index) => createFishAppearance(index),
   );
   private readonly shadowStrengthColor = new THREE.Color();
+  private readonly targetFishShadowColor = new THREE.Color(FISH.shadow.color);
+  private previousAppearanceTime = -1;
   private currentVisualDepth = 0;
 
   public constructor(canvas: HTMLCanvasElement) {
@@ -293,23 +289,16 @@ export class FishRenderer {
     );
     this.weatherScene.add(this.weather.mesh);
 
-    const shallowShadowGeometry = new THREE.BufferGeometry();
-    const deepShadowGeometry = new THREE.BufferGeometry();
+    const shadowGeometry = new THREE.BufferGeometry();
     const whiteGeometry = new THREE.BufferGeometry();
     const blackGeometry = new THREE.BufferGeometry();
     const lineGeometry = new THREE.BufferGeometry();
-    shallowShadowGeometry.name = "shallow fish shadows";
-    deepShadowGeometry.name = "deep fish shadows";
+    shadowGeometry.name = "fish shadows";
     whiteGeometry.name = "fish silhouettes";
     blackGeometry.name = "fish markings";
     lineGeometry.name = "fish debug lines";
-    this.shallowShadowTriangles = new GeometryBatch(
-      shallowShadowGeometry,
-      TRIANGLE_FLOAT_CAPACITY,
-      true,
-    );
-    this.deepShadowTriangles = new GeometryBatch(
-      deepShadowGeometry,
+    this.shadowTriangles = new GeometryBatch(
+      shadowGeometry,
       TRIANGLE_FLOAT_CAPACITY,
       true,
     );
@@ -338,36 +327,25 @@ export class FishRenderer {
       toneMapped: false,
     });
 
-    const shallowShadowMesh = new THREE.Mesh(
-      shallowShadowGeometry,
-      this.shallowShadowMaterial,
-    );
-    const deepShadowMesh = new THREE.Mesh(
-      deepShadowGeometry,
-      this.deepShadowMaterial,
-    );
+    const shadowMesh = new THREE.Mesh(shadowGeometry, this.fishShadowMaterial);
     const outerMesh = new THREE.Mesh(whiteGeometry, outerMaterial);
     const bodyMesh = new THREE.Mesh(blackGeometry, bodyMaterial);
     const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
-    shallowShadowMesh.frustumCulled = false;
-    deepShadowMesh.frustumCulled = false;
+    shadowMesh.frustumCulled = false;
     outerMesh.frustumCulled = false;
     bodyMesh.frustumCulled = false;
     lines.frustumCulled = false;
     outerMesh.renderOrder = 1;
     bodyMesh.renderOrder = 2;
     lines.renderOrder = 3;
-    this.shallowFishShadowScene.add(shallowShadowMesh);
-    this.deepShadowPass = new DeepShadowPass(deepShadowMesh);
+    this.fishShadowScene.add(shadowMesh);
     this.fishScene.add(outerMesh, bodyMesh, lines);
   }
 
   public refreshConfig(): void {
-    this.shallowShadowMaterial.uniforms.uColor.value.setHex(FISH.shadow.color);
-    this.shallowShadowMaterial.uniforms.uOpacity.value = FISH.shadow.opacity;
-    this.deepShadowMaterial.uniforms.uColor.value.setHex(FISH.shadow.color);
-    this.deepShadowMaterial.uniforms.uOpacity.value =
-      FISH.shadow.opacity * FISH.depth.shadow.deepOpacityMultiplier;
+    this.targetFishShadowColor.setHex(FISH.shadow.color);
+    this.pondBed.refreshConfig();
+    this.waterSurface.refreshConfig();
     for (let index = 0; index < this.appearances.length; index += 1) {
       this.appearances[index] = createFishAppearance(index);
       this.depthAppearances[index] = createFishAppearance(index);
@@ -382,21 +360,29 @@ export class FishRenderer {
     this.underwaterTarget.dispose();
     this.compositeTarget.dispose();
     this.surfaceDisturbance.dispose();
-    this.deepShadowPass.dispose();
-    this.shallowShadowMaterial.dispose();
-    this.deepShadowMaterial.dispose();
+    this.fishShadowMaterial.dispose();
     this.weather.dispose();
     this.renderer.dispose();
   }
 
   public setWeatherPreset(id: WeatherPresetId): void {
-    this.waterSurface.setWeatherPreset(id);
     this.weather.setPreset(id);
   }
 
   public draw(school: School, time: number, showDebug: boolean): void {
-    this.shallowShadowTriangles.reset();
-    this.deepShadowTriangles.reset();
+    if (this.previousAppearanceTime >= 0) {
+      const deltaTime = Math.min(
+        0.1,
+        Math.max(0, time - this.previousAppearanceTime),
+      );
+      const blend = 1 - Math.exp(-deltaTime * 2.25);
+      this.fishShadowMaterial.uniforms.uColor.value.lerp(
+        this.targetFishShadowColor,
+        blend,
+      );
+    }
+    this.previousAppearanceTime = time;
+    this.shadowTriangles.reset();
     this.outerTriangles.reset();
     this.bodyTriangles.reset();
     this.outlineLines.reset();
@@ -410,13 +396,12 @@ export class FishRenderer {
       if (showDebug) this.drawDebug(fish, appearance);
     }
 
-    this.shallowShadowTriangles.commit();
-    this.deepShadowTriangles.commit();
+    this.shadowTriangles.commit();
     this.outerTriangles.commit();
     this.bodyTriangles.commit();
     this.outlineLines.commit();
     this.tinyFishRenderer.update(school.tinyFish);
-    this.pondBed.update();
+    this.pondBed.update(time);
     this.surfaceDisturbance.render(this.renderer, school, time);
     this.waterSurface.update(school, time);
     this.duckweed.update(time);
@@ -428,10 +413,7 @@ export class FishRenderer {
     this.renderer.autoClear = false;
     this.renderer.render(this.bedScene, this.camera);
     this.renderer.render(this.shadowScene, this.camera);
-    this.deepShadowPass.render(this.renderer, this.camera, this.underwaterTarget);
-    this.renderer.setRenderTarget(this.underwaterTarget);
-    this.renderer.autoClear = false;
-    this.renderer.render(this.shallowFishShadowScene, this.camera);
+    this.renderer.render(this.fishShadowScene, this.camera);
     this.renderer.render(this.fishScene, this.camera);
     this.renderer.autoClear = true;
     this.renderer.setRenderTarget(this.compositeTarget);
@@ -523,22 +505,7 @@ export class FishRenderer {
   }
 
   private addShadowTriangle(a: Vec2, b: Vec2, c: Vec2): void {
-    const shallowStrength = 1 - this.currentVisualDepth;
-    if (shallowStrength > 0.001) {
-      this.shadowStrengthColor.setRGB(
-        shallowStrength,
-        shallowStrength,
-        shallowStrength,
-      );
-      this.shallowShadowTriangles.triangle(
-        add(a, FISH.shadow.offset),
-        add(b, FISH.shadow.offset),
-        add(c, FISH.shadow.offset),
-        this.shadowStrengthColor,
-      );
-    }
-    if (this.currentVisualDepth <= 0.001) return;
-    const deepOffset = {
+    const shadowOffset = {
       x:
         FISH.shadow.offset.x +
         FISH.depth.shadow.additionalOffset.x * this.currentVisualDepth,
@@ -546,35 +513,25 @@ export class FishRenderer {
         FISH.shadow.offset.y +
         FISH.depth.shadow.additionalOffset.y * this.currentVisualDepth,
     };
+    const opacity =
+      FISH.shadow.surfaceOpacity +
+      (FISH.shadow.deepOpacity - FISH.shadow.surfaceOpacity) *
+        this.currentVisualDepth;
     this.shadowStrengthColor.setRGB(
-      this.currentVisualDepth,
-      this.currentVisualDepth,
-      this.currentVisualDepth,
+      opacity,
+      opacity,
+      opacity,
     );
-    this.deepShadowTriangles.triangle(
-      add(a, deepOffset),
-      add(b, deepOffset),
-      add(c, deepOffset),
+    this.shadowTriangles.triangle(
+      add(a, shadowOffset),
+      add(b, shadowOffset),
+      add(c, shadowOffset),
       this.shadowStrengthColor,
     );
   }
 
   private addShadowCircle(center: Vec2, radius: number): void {
-    const shallowStrength = 1 - this.currentVisualDepth;
-    if (shallowStrength > 0.001) {
-      this.shadowStrengthColor.setRGB(
-        shallowStrength,
-        shallowStrength,
-        shallowStrength,
-      );
-      this.shallowShadowTriangles.circle(
-        add(center, FISH.shadow.offset),
-        radius,
-        this.shadowStrengthColor,
-      );
-    }
-    if (this.currentVisualDepth <= 0.001) return;
-    const deepOffset = {
+    const shadowOffset = {
       x:
         FISH.shadow.offset.x +
         FISH.depth.shadow.additionalOffset.x * this.currentVisualDepth,
@@ -582,13 +539,17 @@ export class FishRenderer {
         FISH.shadow.offset.y +
         FISH.depth.shadow.additionalOffset.y * this.currentVisualDepth,
     };
+    const opacity =
+      FISH.shadow.surfaceOpacity +
+      (FISH.shadow.deepOpacity - FISH.shadow.surfaceOpacity) *
+        this.currentVisualDepth;
     this.shadowStrengthColor.setRGB(
-      this.currentVisualDepth,
-      this.currentVisualDepth,
-      this.currentVisualDepth,
+      opacity,
+      opacity,
+      opacity,
     );
-    this.deepShadowTriangles.circle(
-      add(center, deepOffset),
+    this.shadowTriangles.circle(
+      add(center, shadowOffset),
       radius,
       this.shadowStrengthColor,
     );

@@ -106,6 +106,19 @@ class LotusGeometryBatch {
     this.point(c, color);
   }
 
+  public triangleColors(
+    a: Point,
+    b: Point,
+    c: Point,
+    colorA: THREE.Color,
+    colorB: THREE.Color,
+    colorC: THREE.Color,
+  ): void {
+    this.point(a, colorA);
+    this.point(b, colorB);
+    this.point(c, colorC);
+  }
+
   public line(a: Point, b: Point, color: THREE.Color): void {
     this.point(a, color);
     this.point(b, color);
@@ -151,6 +164,9 @@ export class LotusLeavesPass {
   private readonly leafGeometry = new THREE.BufferGeometry();
   private readonly veinGeometry = new THREE.BufferGeometry();
   private readonly flowerGeometry = new THREE.BufferGeometry();
+  private readonly leafCenterColor = new THREE.Color();
+  private readonly leafEdgeColorA = new THREE.Color();
+  private readonly leafEdgeColorB = new THREE.Color();
   private readonly shadowMaterial = new THREE.MeshBasicMaterial({
     color: LOTUS.shadow.color,
     opacity: LOTUS.shadow.opacity,
@@ -335,21 +351,47 @@ export class LotusLeavesPass {
     const start = angle + LOTUS.notchHalfAngle;
     const span = TAU - LOTUS.notchHalfAngle * 2;
 
+    if (palette) this.leafCenterColor.copy(palette.center);
+
     for (let index = 0; index < LOTUS.leafSegments; index += 1) {
       const angleA = start + (index / LOTUS.leafSegments) * span;
       const angleB = start + ((index + 1) / LOTUS.leafSegments) * span;
-      let color = DEFAULT_COLOR;
       if (palette) {
-        const light = Math.cos((angleA + angleB) * 0.5 + 2.2);
-        color = light > 0.48 ? palette.light : light < -0.58 ? palette.shade : palette.base;
+        this.leafColorAt(this.leafEdgeColorA, palette, angleA, phase);
+        this.leafColorAt(this.leafEdgeColorB, palette, angleB, phase);
+        batch.triangleColors(
+          center,
+          this.edgePoint(center, radius, angleA, phase),
+          this.edgePoint(center, radius, angleB, phase),
+          this.leafCenterColor,
+          this.leafEdgeColorA,
+          this.leafEdgeColorB,
+        );
+        continue;
       }
       batch.triangle(
         center,
         this.edgePoint(center, radius, angleA, phase),
         this.edgePoint(center, radius, angleB, phase),
-        color,
+        DEFAULT_COLOR,
       );
     }
+  }
+
+  private leafColorAt(
+    target: THREE.Color,
+    palette: LeafPalette,
+    angle: number,
+    phase: number,
+  ): void {
+    const directionalLight = 0.5 + Math.cos(angle + 2.2) * 0.42;
+    const organicVariation = Math.sin(angle * 3 + phase * 0.7) * 0.045;
+    const tone = Math.max(0, Math.min(1, directionalLight + organicVariation));
+    if (tone < 0.5) {
+      target.copy(palette.shade).lerp(palette.base, tone * 2);
+      return;
+    }
+    target.copy(palette.base).lerp(palette.light, (tone - 0.5) * 2);
   }
 
   private drawVeins(
@@ -365,7 +407,7 @@ export class LotusLeavesPass {
       const veinAngle = start + (index / (LOTUS.veinCount + 1)) * span;
       this.veinBatch.line(
         center,
-        this.edgePoint(center, radius * 0.78, veinAngle, phase),
+        this.edgePoint(center, radius * 0.68, veinAngle, phase),
         palette.vein,
       );
     }

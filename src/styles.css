@@ -227,8 +227,8 @@ input[type="color"] {
   pointer-events: none;
 }
 
-.status-float,
-.settings-trigger,
+.brand-float,
+.top-actions,
 .control-dock {
   border: 1px solid var(--border);
   background: rgb(24 24 27 / 92%);
@@ -238,35 +238,50 @@ input[type="color"] {
     inset 0 1px 0 rgb(255 255 255 / 7%);
 }
 
-.status-float {
+.brand-float {
   position: absolute;
   top: clamp(0.6rem, 1.8vw, 1.1rem);
   left: clamp(0.6rem, 1.8vw, 1.1rem);
   width: max-content;
-  padding: 0.48rem 0.62rem;
+  padding: 0.46rem 0.72rem 0.5rem;
   overflow: hidden;
   border-radius: 0.7rem;
 }
 
-.fps-readout {
+.brand-wordmark {
+  margin: 0;
   color: var(--foreground);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  font-weight: 660;
+  letter-spacing: 0.14em;
+  line-height: 1;
 }
 
-.settings-trigger {
+.top-actions {
   position: absolute;
   top: clamp(0.6rem, 1.8vw, 1.1rem);
   right: clamp(0.6rem, 1.8vw, 1.1rem);
-  height: 2.25rem;
-  border-radius: 999px;
-  background: var(--secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.16rem;
+  padding: 0.22rem;
+  border-radius: 0.85rem;
 }
 
-.settings-trigger:hover {
+.top-actions [data-slot="separator"] {
+  width: 1px;
+  height: 1.1rem;
+  margin: 0 0.08rem;
+  background: var(--border);
+}
+
+.top-actions [data-slot="button"]:hover {
   background: var(--accent);
+}
+
+.settings-trigger {
+  height: 1.8rem;
+  border-radius: 0.62rem;
 }
 
 .control-dock {
@@ -759,10 +774,14 @@ input[type="color"] {
     padding-inline: 0.5rem;
   }
 
-  .status-float {
+  .brand-float {
     position: static;
     padding: 0.42rem 0.52rem;
     border-radius: 0.8rem;
+  }
+
+  .top-actions {
+    position: static;
   }
 
   .settings-trigger {
@@ -790,15 +809,14 @@ input[type="color"] {
   }
 
   .control-group--environment {
-    padding-left: 0.45rem;
-    border-left: 1px solid var(--border);
-  }
-
-  .control-group--view {
     grid-column: 1 / -1;
     justify-content: center;
     padding-top: 0.3rem;
     border-top: 1px solid var(--border);
+  }
+
+  .control-group--view {
+    justify-content: center;
   }
 
   .control-dock > .control-divider {
@@ -851,7 +869,7 @@ input[type="color"] {
     display: inline;
   }
 
-  .control-dock .github-stars {
+  .top-actions .github-stars {
     width: auto;
     min-width: 2.9rem;
   }

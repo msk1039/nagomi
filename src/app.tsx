@@ -1,5 +1,6 @@
 import {
   Cloud,
+  CloudFog,
   CloudRain,
   EyeOff,
   Maximize2,
@@ -13,6 +14,8 @@ import {
   Shuffle,
   Sun,
   Sunset as SunsetIcon,
+  Volume2,
+  Waves,
   X,
 } from "lucide-react";
 import {
@@ -46,6 +49,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { AUDIO } from "./audio-config";
 import { ConfigEditor } from "./config-editor";
 import {
   CANVAS_HEIGHT,
@@ -58,6 +62,8 @@ import { useIsMobile } from "./hooks/use-mobile";
 import { clamp, vec } from "./math";
 import {
   applyRuntimeConfigDraft,
+  applyWeatherConfig,
+  applyWeatherConfigToDraft,
   createDefaultRuntimeConfigDraft,
   createRuntimeConfigDraft,
   resetRuntimeConfig,
@@ -75,7 +81,6 @@ import {
 
 interface SceneStats {
   koi: number;
-  fps: number;
 }
 
 interface PondRuntime {
@@ -86,7 +91,6 @@ interface PondRuntime {
 
 const emptyStats: SceneStats = {
   koi: FISH.initialCount,
-  fps: 0,
 };
 
 const AMBIENT_IDLE_DELAY_MS = 2400;
@@ -101,10 +105,9 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-function sceneStats(runtime: PondRuntime, fps: number): SceneStats {
+function sceneStats(runtime: PondRuntime): SceneStats {
   return {
     koi: runtime.school.count,
-    fps,
   };
 }
 
@@ -112,8 +115,12 @@ function WeatherIcon({ id }: { id: WeatherPresetId }) {
   switch (id) {
     case "sunny":
       return <Sun aria-hidden="true" />;
+    case "deep-clear":
+      return <Waves aria-hidden="true" />;
     case "overcast":
       return <Cloud aria-hidden="true" />;
+    case "mist":
+      return <CloudFog aria-hidden="true" />;
     case "sunset":
       return <SunsetIcon aria-hidden="true" />;
     case "moonlight":
@@ -127,12 +134,17 @@ export function App() {
   const isMobile = useIsMobile();
   const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ambientAudioContextRef = useRef<AudioContext | null>(null);
+  const ambientAudioGainRef = useRef<GainNode | null>(null);
+  const ambientAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const ambientAudioLoadingRef = useRef<Promise<void> | null>(null);
   const runtimeRef = useRef<PondRuntime | null>(null);
   const ambientModeRef = useRef(false);
   const weatherPresetRef = useRef<WeatherPresetId>(
     DEFAULT_WEATHER_PRESET_ID,
   );
   const rainEnabledRef = useRef(false);
+  const soundEnabledRef = useRef<boolean>(AUDIO.defaultEnabled);
   const [stats, setStats] = useState<SceneStats>(emptyStats);
   const [showInterface, setShowInterface] = useState(true);
   const [ambientMode, setAmbientMode] = useState(false);
@@ -140,6 +152,9 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
   const [rainEnabled, setRainEnabled] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(
+    AUDIO.defaultEnabled,
+  );
   const [weatherPreset, setWeatherPreset] = useState<WeatherPresetId>(
     DEFAULT_WEATHER_PRESET_ID,
   );
@@ -153,14 +168,14 @@ export function App() {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     runtime.school.setCount(runtime.school.count + amount);
-    setStats((current) => sceneStats(runtime, current.fps));
+    setStats(sceneStats(runtime));
   }, []);
 
   const scatter = useCallback(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     runtime.school.scatter();
-    setStats((current) => sceneStats(runtime, current.fps));
+    setStats(sceneStats(runtime));
   }, []);
 
   const applyRuntimeConfig = useCallback(() => {
@@ -168,7 +183,7 @@ export function App() {
     if (!runtime) return;
     runtime.school.refreshConfig();
     runtime.renderer.refreshConfig();
-    setStats((current) => sceneStats(runtime, current.fps));
+    setStats(sceneStats(runtime));
   }, []);
 
   const handleConfigChange = useCallback((
@@ -226,10 +241,100 @@ export function App() {
     runtimeRef.current?.school.setRainIntensity(enabled ? 1 : 0);
   }, []);
 
+  const startAmbientAudio = useCallback(async (): Promise<void> => {
+    if (ambientAudioSourceRef.current) {
+      await ambientAudioContextRef.current?.resume();
+      return;
+    }
+    if (ambientAudioLoadingRef.current) {
+      await ambientAudioLoadingRef.current;
+      return;
+    }
+
+    const context = new AudioContext();
+    const gain = context.createGain();
+    gain.gain.value = soundEnabledRef.current ? AUDIO.ambient.volume : 0;
+    gain.connect(context.destination);
+    ambientAudioContextRef.current = context;
+    ambientAudioGainRef.current = gain;
+
+    const loading = (async (): Promise<void> => {
+      await context.resume();
+      const loadBuffer = async (path: string): Promise<AudioBuffer> => {
+        const response = await fetch(`${import.meta.env.BASE_URL}${path}`);
+        if (!response.ok) throw new Error(`Unable to load ${path}`);
+        return context.decodeAudioData(await response.arrayBuffer());
+      };
+      const ambientBuffer = await loadBuffer(AUDIO.ambient.source);
+      if (context.state === "closed") return;
+
+      const ambientSource = context.createBufferSource();
+      ambientSource.buffer = ambientBuffer;
+      ambientSource.loop = true;
+      ambientSource.connect(gain);
+      ambientSource.start();
+      ambientAudioSourceRef.current = ambientSource;
+    })();
+    ambientAudioLoadingRef.current = loading;
+    try {
+      await loading;
+    } finally {
+      ambientAudioLoadingRef.current = null;
+    }
+  }, []);
+
+  const setAmbientSoundEnabled = useCallback((enabled: boolean) => {
+    soundEnabledRef.current = enabled;
+    setSoundEnabled(enabled);
+    if (enabled) void startAmbientAudio().catch(() => undefined);
+
+    const context = ambientAudioContextRef.current;
+    const gain = ambientAudioGainRef.current;
+    if (context && gain) {
+      const now = context.currentTime;
+      gain.gain.cancelAndHoldAtTime(now);
+      gain.gain.linearRampToValueAtTime(
+        enabled ? AUDIO.ambient.volume : 0,
+        now + AUDIO.toggleFadeSeconds,
+      );
+    }
+  }, [startAmbientAudio]);
+
+  useEffect(() => {
+    const unlockAmbientAudio = (): void => {
+      window.removeEventListener("pointerdown", unlockAmbientAudio);
+      window.removeEventListener("keydown", unlockAmbientAudio);
+      if (soundEnabledRef.current) {
+        void startAmbientAudio().catch(() => undefined);
+      }
+    };
+
+    window.addEventListener("pointerdown", unlockAmbientAudio);
+    window.addEventListener("keydown", unlockAmbientAudio);
+    return () => {
+      window.removeEventListener("pointerdown", unlockAmbientAudio);
+      window.removeEventListener("keydown", unlockAmbientAudio);
+    };
+  }, [startAmbientAudio]);
+
+  useEffect(() => () => {
+    ambientAudioSourceRef.current?.stop();
+    ambientAudioSourceRef.current = null;
+    ambientAudioGainRef.current = null;
+    const context = ambientAudioContextRef.current;
+    ambientAudioContextRef.current = null;
+    if (context && context.state !== "closed") void context.close();
+  }, []);
+
   const changeWeather = useCallback((id: WeatherPresetId) => {
     const preset = getWeatherPreset(id);
+    applyWeatherConfig(preset.config);
+    setDraftConfig((current) =>
+      applyWeatherConfigToDraft(current, preset.config),
+    );
     weatherPresetRef.current = id;
     setWeatherPreset(id);
+    runtimeRef.current?.renderer.refreshConfig();
     runtimeRef.current?.renderer.setWeatherPreset(id);
     changeRainEnabled(preset.rainStrength > 0);
     setWeatherMenuOpen(false);
@@ -295,21 +400,7 @@ export function App() {
     let accumulator = 0;
     let simulationTime = 0;
     let previousTime = performance.now();
-    let framesSinceSample = 0;
-    let fpsSampleStarted = previousTime;
-    let displayedFps = 0;
-
     const animate = (now: number): void => {
-      framesSinceSample += 1;
-      if (now - fpsSampleStarted >= 500) {
-        displayedFps = Math.round(
-          (framesSinceSample * 1000) / (now - fpsSampleStarted),
-        );
-        framesSinceSample = 0;
-        fpsSampleStarted = now;
-        setStats(sceneStats(runtime, displayedFps));
-      }
-
       accumulator += Math.min((now - previousTime) / 1000, 0.1);
       previousTime = now;
       while (accumulator >= FIXED_STEP) {
@@ -352,11 +443,11 @@ export function App() {
         default:
           return;
       }
-      setStats(sceneStats(runtime, displayedFps));
+      setStats(sceneStats(runtime));
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    setStats(sceneStats(runtime, 0));
+    setStats(sceneStats(runtime));
     animationFrame = requestAnimationFrame(animate);
 
     return () => {
@@ -385,7 +476,7 @@ export function App() {
         ),
       ),
     );
-    setStats((current) => sceneStats(runtime, current.fps));
+    setStats(sceneStats(runtime));
   };
 
   const selectedWeather = getWeatherPreset(weatherPreset);
@@ -421,23 +512,26 @@ export function App() {
                 : ""
             }`}
           >
-            <section className="status-float" aria-label="Current frame rate">
-              <span className="fps-readout">{stats.fps} FPS</span>
-            </section>
+            <header className="brand-float">
+              <h1 className="brand-wordmark">nagomi</h1>
+            </header>
 
-            <Drawer
-              open={settingsOpen}
-              onOpenChange={setSettingsOpen}
-              modal={false}
-              swipeDirection={isMobile ? "down" : "right"}
-              showSwipeHandle={isMobile}
-              disablePointerDismissal
-            >
+            <div className="top-actions">
+              <GitHubStars repo={GITHUB_REPOSITORY} stargazersCount={2} />
+              <Separator orientation="vertical" />
+              <Drawer
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                modal={false}
+                swipeDirection={isMobile ? "down" : "right"}
+                showSwipeHandle={isMobile}
+                disablePointerDismissal
+              >
               <DrawerTrigger
                 render={
                   <Button
                     className="settings-trigger"
-                    variant="secondary"
+                    variant="ghost"
                     aria-label="Open pond settings"
                   />
                 }
@@ -491,7 +585,8 @@ export function App() {
                   </Button>
                 </DrawerFooter>
               </DrawerContent>
-            </Drawer>
+              </Drawer>
+            </div>
           </div>
         )}
 
@@ -504,6 +599,36 @@ export function App() {
             }`}
             aria-label="Simulation controls"
           >
+            <div className="control-group control-group--view">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void toggleAmbientMode()}
+                aria-label={ambientMode ? "Exit ambient mode" : "Enter ambient mode"}
+                aria-keyshortcuts="F"
+                aria-pressed={ambientMode}
+              >
+                {ambientMode ? (
+                  <Minimize2 aria-hidden="true" />
+                ) : (
+                  <Maximize2 aria-hidden="true" />
+                )}
+                <span className="control-label">{ambientMode ? "Exit" : "Ambient"}</span>
+                <Kbd className="control-shortcut">F</Kbd>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInterface(false)}
+                aria-label="Hide interface"
+                aria-keyshortcuts="H"
+              >
+                <EyeOff aria-hidden="true" />
+                <span className="control-label">Hide UI</span>
+                <Kbd className="control-shortcut">H</Kbd>
+              </Button>
+            </div>
+            <Separator className="control-divider" orientation="vertical" />
             <div className="control-group control-group--simulation">
               <Button
                 variant="secondary"
@@ -593,37 +718,16 @@ export function App() {
                   aria-label="Toggle rain ripples"
                 />
               </div>
-            </div>
-            <Separator className="control-divider" orientation="vertical" />
-            <div className="control-group control-group--view">
-              <GitHubStars repo={GITHUB_REPOSITORY} stargazersCount={2} />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void toggleAmbientMode()}
-                aria-label={ambientMode ? "Exit ambient mode" : "Enter ambient mode"}
-                aria-keyshortcuts="F"
-                aria-pressed={ambientMode}
-              >
-                {ambientMode ? (
-                  <Minimize2 aria-hidden="true" />
-                ) : (
-                  <Maximize2 aria-hidden="true" />
-                )}
-                <span className="control-label">{ambientMode ? "Exit" : "Ambient"}</span>
-                <Kbd className="control-shortcut">F</Kbd>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowInterface(false)}
-                aria-label="Hide interface"
-                aria-keyshortcuts="H"
-              >
-                <EyeOff aria-hidden="true" />
-                <span className="control-label">Hide UI</span>
-                <Kbd className="control-shortcut">H</Kbd>
-              </Button>
+              <div className="rain-control">
+                <Volume2 aria-hidden="true" />
+                <span className="rain-control__label">Sound</span>
+                <Switch
+                  size="sm"
+                  checked={soundEnabled}
+                  onCheckedChange={setAmbientSoundEnabled}
+                  aria-label="Toggle pond ambience"
+                />
+              </div>
             </div>
           </nav>
         )}
