@@ -1,6 +1,15 @@
 # nagomi
 
-A WebGL procedural koi simulation. Three.js draws colorful generated koi patterns, dynamic fish geometry, subtle shadows, a procedural pond bed, and refractive click ripples at a fixed 480 × 270 resolution.
+Nagomi is an interactive, procedurally animated koi pond that runs in your browser. The fish
+swim on their own, change depth, react to nearby fish, and gather around the
+water when you click or tap. Ripples, currents, lotus leaves, changing weather,
+and optional river sounds help the pond feel alive.
+
+The fish are not following a recorded animation. Instead, each fish uses a few
+simple rules to decide where to swim, how quickly to turn, and how its body and
+tail should bend. The program calculates these movements continuously while
+you watch. This is called **procedural animation**: behavior is created in real
+time rather than played from a fixed video or set of frames.
 
 New to procedural animation? Read [How Nagomi works](docs/how-it-works.md).
 
