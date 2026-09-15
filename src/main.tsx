@@ -4,7 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { App } from "./app";
 import "./styles.css";
 
-inject();
+const isVercelDeployment =
+  Boolean(import.meta.env.VITE_VERCEL_ENV) ||
+  window.location.hostname.endsWith(".vercel.app") ||
+  import.meta.env.VITE_VERCEL_ANALYTICS === "true";
+
+if (isVercelDeployment) inject();
 
 const rootElement = document.querySelector<HTMLDivElement>("#root");
 if (!rootElement) throw new Error("Missing required element: #root");
